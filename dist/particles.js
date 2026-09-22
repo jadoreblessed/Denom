@@ -18,8 +18,8 @@ export class DenomMatter {
     this.suspended = false;
     this.seedValue = 0xdecafbad;
     const cores = window.navigator?.hardwareConcurrency || 4;
-    this.count = innerWidth < 680 ? (cores < 6 ? 1150 : 1550) : innerWidth < 1100 ? (cores < 6 ? 1900 : 2450) : (cores < 6 ? 2650 : 3300);
-    this.frameInterval = innerWidth < 680 ? 24 : 16.7;
+    this.count = innerWidth < 680 ? (cores < 6 ? 850 : 1100) : innerWidth < 1100 ? (cores < 6 ? 1450 : 1850) : (cores < 6 ? 1950 : 2350);
+    this.frameInterval = innerWidth < 680 ? 28 : 20;
     this.seed = new Float32Array(this.count);
     this.angle = new Float32Array(this.count);
     this.depth = new Float32Array(this.count);
@@ -32,7 +32,7 @@ export class DenomMatter {
       this.seed[index] = this.random();
       this.angle[index] = this.random() * TAU;
       this.depth[index] = this.random() * 2 - 1;
-      this.radius[index] = 0.48 + this.random() * 0.64;
+      this.radius[index] = 0.56 + this.random() * 0.72;
       this.tint[index] = Math.floor(this.random() * 5);
       this.variant[index] = this.random() > 0.82 ? 1 : 0;
     }
@@ -45,12 +45,6 @@ export class DenomMatter {
       this.resize();
       this.buildShapes();
     }, { passive: true });
-    addEventListener('pointermove', event => {
-      this.pointer.x = event.clientX;
-      this.pointer.y = event.clientY;
-      this.pointer.active = event.pointerType !== 'touch';
-    }, { passive: true });
-    addEventListener('pointerleave', () => { this.pointer.active = false; }, { passive: true });
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) cancelAnimationFrame(this.frame);
       else if (this.running && !this.reduced) {
@@ -69,7 +63,7 @@ export class DenomMatter {
     this.width = innerWidth;
     this.height = innerHeight;
     this.mobile = this.width < 680;
-    const dpr = Math.min(devicePixelRatio || 1, this.mobile ? 1.35 : 1.5);
+    const dpr = Math.min(devicePixelRatio || 1, this.mobile ? 1.1 : 1.25);
     this.canvas.width = Math.round(this.width * dpr);
     this.canvas.height = Math.round(this.height * dpr);
     this.canvas.style.width = `${this.width}px`;
@@ -161,12 +155,12 @@ export class DenomMatter {
 
   makeHero() {
     const output = this.blank();
-    const mainEnd = Math.floor(this.count * 0.91);
-    const contractEnd = Math.floor(this.count * 0.97);
-    const sideY = this.mobile ? 0.26 : 0.2;
+    const mainEnd = Math.floor(this.count * 0.84);
+    const contractEnd = Math.floor(this.count * 0.92);
+    const sideY = this.mobile ? 0.265 : 0.22;
     this.writeText(output, 0, mainEnd, 'DENOM', { y: -0.035, width: 0.35, size: 420 });
-    this.writeText(output, mainEnd, contractEnd, '0x', { x: -0.44, y: sideY, width: 0.052, size: 360, weight: 500 });
-    this.writeText(output, contractEnd, this.count, 'X', { x: 0.44, y: sideY, width: 0.028, size: 390, weight: 500 });
+    this.writeText(output, mainEnd, contractEnd, '0x', { x: -0.42, y: sideY, width: 0.088, size: 370, weight: 600 });
+    this.writeText(output, contractEnd, this.count, 'X', { x: 0.42, y: sideY, width: 0.058, size: 410, weight: 600 });
     return output;
   }
 
@@ -391,53 +385,38 @@ export class DenomMatter {
     const context = this.context;
     const centerX = this.width * 0.5;
     const centerY = this.height * 0.45;
-    const radiusX = Math.min(this.width * 0.41, this.height * 0.79);
-    const radiusY = Math.min(this.height * 0.37, this.width * 0.235);
-    const rotation = time * 0.000075;
-    const project = (x, y, z) => {
-      const rotatedX = x * Math.cos(rotation) - z * Math.sin(rotation);
-      const rotatedZ = x * Math.sin(rotation) + z * Math.cos(rotation);
-      const perspective = 1 / (1 + rotatedZ * 0.24);
-      return [centerX + rotatedX * radiusX * perspective, centerY + y * radiusY * perspective];
-    };
+    const radiusX = Math.min(this.width * 0.36, this.height * 0.68);
+    const radiusY = Math.min(this.height * 0.28, this.width * 0.17);
+    const rotation = time * 0.00009;
     context.save();
-    context.globalCompositeOperation = 'source-over';
-    context.lineWidth = 0.65;
-
-    for (let longitude = 0; longitude < 14; longitude += 1) {
-      const theta = longitude / 14 * TAU;
+    context.globalCompositeOperation = 'screen';
+    context.lineWidth = 0.7;
+    const orbits = [
+      { tilt:-0.62, squash:.42, phase:0, color:'91,222,255', strength:.22 },
+      { tilt:0.08, squash:.26, phase:1.5, color:'126,174,205', strength:.14 },
+      { tilt:0.68, squash:.39, phase:3.1, color:'70,201,255', strength:.18 },
+      { tilt:-0.18, squash:.58, phase:4.4, color:'126,174,205', strength:.1 }
+    ];
+    orbits.forEach((orbit, orbitIndex) => {
       context.beginPath();
-      let drawing = false;
-      for (let step = 0; step <= 54; step += 1) {
-        const phi = -Math.PI / 2 + step / 54 * Math.PI;
-        const point = project(Math.cos(phi) * Math.cos(theta), Math.sin(phi), Math.cos(phi) * Math.sin(theta));
-        const clearWordmark = Math.abs(point[1] - centerY) < this.height * 0.115;
-        if (clearWordmark || !drawing) {
-          context.moveTo(point[0], point[1]);
-          drawing = !clearWordmark;
-        } else context.lineTo(point[0], point[1]);
+      for (let step = 0; step <= 88; step += 1) {
+        const angle = step / 88 * TAU + rotation * (orbitIndex % 2 ? -1 : 1) + orbit.phase;
+        const px = Math.cos(angle) * radiusX;
+        const py = Math.sin(angle) * radiusY * orbit.squash;
+        const x = centerX + px * Math.cos(orbit.tilt) - py * Math.sin(orbit.tilt);
+        const y = centerY + px * Math.sin(orbit.tilt) * .42 + py * Math.cos(orbit.tilt);
+        const clearWordmark = Math.abs(y - centerY) < this.height * .105 && Math.abs(x - centerX) < radiusX * .72;
+        if (step === 0 || clearWordmark) context.moveTo(x, y); else context.lineTo(x, y);
       }
-      context.strokeStyle = longitude % 5 === 0 ? `rgba(74, 219, 255, ${0.27 * alpha})` : `rgba(142, 176, 194, ${0.18 * alpha})`;
+      context.strokeStyle = `rgba(${orbit.color}, ${orbit.strength * alpha})`;
       context.stroke();
-    }
-
-    for (let latitude = 1; latitude < 10; latitude += 1) {
-      if (latitude === 5) continue;
-      const phi = -Math.PI / 2 + latitude / 10 * Math.PI;
-      context.beginPath();
-      let drawing = false;
-      for (let step = 0; step <= 72; step += 1) {
-        const theta = step / 72 * TAU;
-        const point = project(Math.cos(phi) * Math.cos(theta), Math.sin(phi), Math.cos(phi) * Math.sin(theta));
-        const clearWordmark = Math.abs(point[1] - centerY) < this.height * 0.115;
-        if (clearWordmark || !drawing) {
-          context.moveTo(point[0], point[1]);
-          drawing = !clearWordmark;
-        } else context.lineTo(point[0], point[1]);
-      }
-      context.strokeStyle = `rgba(131, 170, 190, ${0.17 * alpha})`;
-      context.stroke();
-    }
+    });
+    context.beginPath();
+    context.ellipse(centerX, centerY, radiusX * 1.04, radiusY * 1.15, 0, Math.PI * .08, Math.PI * .92);
+    context.moveTo(centerX - radiusX * 1.0, centerY + radiusY * .34);
+    context.ellipse(centerX, centerY, radiusX * 1.04, radiusY * 1.15, 0, Math.PI * 1.08, Math.PI * 1.92);
+    context.strokeStyle = `rgba(108, 194, 224, ${0.12 * alpha})`;
+    context.stroke();
     context.restore();
   }
 
@@ -457,10 +436,10 @@ export class DenomMatter {
     const context = this.context;
     const left = this.mobile ? 20 : Math.max(22, this.width * 0.037);
     const width = this.mobile ? this.width - 40 : Math.min(760, this.width * 0.53);
-    const edgeY = this.height * (this.mobile ? 0.79 : 0.73);
+    const edgeY = this.height * (this.mobile ? 0.83 : 0.77);
     context.save();
     context.globalCompositeOperation = 'screen';
-    for (let index = 0; index < 190; index += 1) {
+    for (let index = 0; index < 92; index += 1) {
       const seedA = (Math.sin(index * 91.733) + 1) * 0.5;
       const seedB = (Math.sin(index * 47.117 + 1.9) + 1) * 0.5;
       const seedC = (Math.sin(index * 13.913 + 4.1) + 1) * 0.5;
@@ -488,8 +467,8 @@ export class DenomMatter {
     const to = this.shapes[next];
     const fromFrame = this.frameFor(scene);
     const toFrame = this.frameFor(next);
-    const intro = scene === 0 ? smooth((time - this.birth) / 1350) : 1;
-    const rawTransition = next === scene ? 0 : clamp((this.local - 0.5) / 0.46);
+    const intro = scene === 0 ? smooth((time - this.birth) / 1750) : 1;
+    const rawTransition = next === scene ? 0 : clamp((this.local - 0.66) / 0.32);
     const transition = smooth(rawTransition);
     const flight = Math.sin(transition * Math.PI);
     const cageAlpha = scene === 0 ? (1 - transition) * intro : 0;
@@ -530,57 +509,28 @@ export class DenomMatter {
         y = focusY + spunY * (squeeze + 0.08) + Math.sin(angle + transition * TAU * 2.2) * flight * (4 + seed * 9);
       }
 
+      let particleIntro = 1;
       if (scene === 0 && rawTransition === 0) {
-        const distance = 85 + seed * Math.max(this.width, this.height) * 0.39;
-        x = a.x + (1 - intro) * Math.cos(angle) * distance;
-        y = a.y + (1 - intro) * Math.sin(angle) * distance * 0.6;
+        particleIntro = smooth(clamp(((time - this.birth) / 1750 - seed * .32) / .68));
+        const distance = 105 + seed * Math.max(this.width, this.height) * 0.44;
+        const spiral = angle + (1 - particleIntro) * (2.1 + depth * .8);
+        x = a.x + (1 - particleIntro) * Math.cos(spiral) * distance;
+        y = a.y + (1 - particleIntro) * Math.sin(spiral) * distance * 0.62;
       } else if (rawTransition === 0) {
         const breathe = Math.sin(time * 0.0005 + angle + visualDepth * 4) * (0.32 + depthLight * 0.68);
         x += Math.cos(angle) * breathe;
         y += Math.sin(angle) * breathe;
       }
 
-      let lens = 0;
-      if (scene === 0 && rawTransition < 0.04 && this.pointer.active) {
-        const dx = x - this.pointer.x;
-        const dy = y - this.pointer.y;
-        const distance = Math.hypot(dx, dy);
-        const influence = this.mobile ? 80 : 145;
-        if (distance < influence && distance > 0.5) {
-          lens = smooth(1 - distance / influence);
-          const normalX = dx / distance;
-          const normalY = dy / distance;
-          const pulse = 49 + Math.sin(time * 0.003 + angle * 2) * 7;
-          x += normalX * lens * pulse - normalY * lens * 21;
-          y += normalY * lens * pulse + normalX * lens * 21;
-        }
-      }
-
       const depthScale = scene === 0 ? 0.94 + depthLight * 0.28 : 0.74 + depthLight * 0.7;
-      const particleRadius = this.radius[index] * depthScale * (scene === 0 ? 1.65 : 1.62) * (1 - flight * 0.13) * (1 + lens * 0.18);
-      const alpha = ((scene === 0 ? 0.77 : 0.73) + seed * 0.13 + depthLight * 0.13) * (scene === 0 && rawTransition === 0 ? intro : 1);
+      const particleRadius = this.radius[index] * depthScale * (scene === 0 ? 1.72 : 1.68) * (1 - flight * 0.1);
+      const twinkle = flight > .05 && index % 17 === 0 ? .68 + .32 * Math.sin(time * .011 + angle * 4) : 1;
+      const alpha = ((scene === 0 ? 0.82 : 0.78) + seed * 0.12 + depthLight * 0.1) * (scene === 0 && rawTransition === 0 ? particleIntro : 1) * twinkle;
       const sprite = this.sprites[this.tint[index] * 2 + this.variant[index]];
       const spriteSize = particleRadius * 5.9;
       context.globalAlpha = alpha;
 
-      if (flight > 0.08 && index % 31 === 0) {
-        context.strokeStyle = this.tint[index] < 2 ? '#c9f7ff' : '#38ccff';
-        context.lineWidth = Math.max(0.35, particleRadius * 0.24);
-        context.beginPath();
-        context.moveTo(x - driftX * 0.09, y - driftY * 0.09);
-        context.lineTo(x, y);
-        context.stroke();
-      }
-
       context.drawImage(sprite, x - spriteSize / 2, y - spriteSize / 2, spriteSize, spriteSize);
-      if (index % 151 === 0 && flight < 0.05) {
-        context.globalAlpha = alpha * 0.34;
-        context.strokeStyle = this.tint[index] < 2 ? '#e6fbff' : '#4bd9ff';
-        context.lineWidth = 0.55;
-        context.beginPath();
-        context.arc(x, y, particleRadius * 1.6, 0, TAU);
-        context.stroke();
-      }
     }
 
     context.globalCompositeOperation = 'source-over';

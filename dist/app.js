@@ -1,4 +1,5 @@
 import { DenomMatter } from './particles.js';
+import { verifiedCandles } from './market-data.js';
 
 const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
 const smooth = value => {
@@ -74,9 +75,13 @@ function showToast(message) {
 }
 
 function measure() {
-  // The visual hand-off must finish at the actual next scene boundary. Using
-  // only the sticky travel completed the particle object a viewport too soon.
-  metrics = scenes.map(scene => ({ top: scene.offsetTop, travel: Math.max(1, scene.offsetHeight) }));
+  // The next sticky panel becomes visible one viewport before its section top.
+  // Using that visual boundary removes the dead scroll gap between scenes.
+  const tops = scenes.map((scene, index) => Math.max(0, scene.offsetTop - (index ? innerHeight : 0)));
+  metrics = scenes.map((scene, index) => ({
+    top: tops[index],
+    travel: Math.max(1, index < scenes.length - 1 ? tops[index + 1] - tops[index] : scene.offsetHeight - innerHeight)
+  }));
 }
 
 function paintScroll() {
@@ -91,7 +96,7 @@ function paintScroll() {
     const inner = scene.querySelector('.scene-inner');
     let opacity = 0;
     if (index === active) {
-      const exit = active === scenes.length - 1 ? 1 : 1 - smooth((local - 0.2) / 0.7);
+      const exit = active === scenes.length - 1 ? 1 : 1 - smooth((local - 0.72) / 0.26);
       opacity = exit;
     }
     if (reduced) opacity = index === active ? 1 : 0;
@@ -99,8 +104,8 @@ function paintScroll() {
     inner.style.transform = reduced ? 'none' : `translate3d(0, ${(1 - opacity) * 18}px, 0)`;
     inner.style.pointerEvents = opacity > 0.55 ? 'auto' : 'none';
 
-    const enterBase = reduced ? 1 : index === active ? smooth((local + 0.01) / 0.035) : 0;
-      const leaveBase = reduced || index !== active || active === scenes.length - 1 ? 0 : smooth((local - 0.5) / 0.46);
+    const enterBase = reduced ? 1 : index === active ? smooth((local + 0.018) / 0.075) : 0;
+    const leaveBase = reduced || index !== active || active === scenes.length - 1 ? 0 : smooth((local - 0.7) / 0.28);
     const motion = landingMotion[index];
     motion.words.forEach((word, wordIndex) => {
       const stagger = Math.min(0.18, wordIndex * 0.022);
@@ -123,7 +128,7 @@ function paintScroll() {
     });
   });
   document.body.dataset.scene = String(active);
-  document.body.style.setProperty('--handoff', active === scenes.length - 1 ? '0' : smooth((local - 0.5) / 0.46).toFixed(3));
+  document.body.style.setProperty('--handoff', active === scenes.length - 1 ? '0' : smooth((local - 0.66) / 0.32).toFixed(3));
   matter?.setScroll(active, local);
 }
 
@@ -262,22 +267,182 @@ function renderMarketLedger(market) {
   document.querySelector('#detail-unit-contract').textContent = `0x${(market.id * 4567 + 0xBC91).toString(16).padStart(4,'0')}…${(market.id * 3221 + 0x0987).toString(16).slice(-4).toUpperCase()}`;
 }
 
-function drawMarketChart(market) {
-  const svg = document.querySelector('#detail-chart');
-  let value = 185 + (market.id % 37);
-  const candles = Array.from({ length: 34 }, (_, index) => {
-    const open = value;
-    const change = Math.sin((index + market.id) * 1.71) * 22 + Math.cos(index * .64) * 12;
-    value = clamp(open + change, 54, 330);
-    const close = value;
-    const high = Math.max(open, close) + 10 + ((index * 13) % 18);
-    const low = Math.min(open, close) - 8 - ((index * 7) % 14);
-    const x = 28 + index * 25;
-    const y = Math.min(open, close);
-    return `<g class="${close < open ? 'up' : 'down'}"><path d="M${x} ${low}V${high}"/><rect x="${x - 6}" y="${y}" width="12" height="${Math.max(4, Math.abs(close - open))}"/></g>`;
-  }).join('');
-  svg.innerHTML = `<g class="detail-grid"><path d="M0 70H900M0 150H900M0 230H900M0 310H900M180 0V390M360 0V390M540 0V390M720 0V390"/></g>${candles}<path class="market-price-line" d="M0 ${value}H900"/><text x="810" y="${Math.max(18,value - 8)}">${formatMarketPrice(market)}</text>`;
+class VerifiedMarketChart {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.context = canvas?.getContext('2d');
+    this.empty = document.querySelector('#chart-empty');
+    this.minutes = 5;
+    this.visibleCount = 42;
+    this.offset = 0;
+    this.drag = null;
+    this.data = [];
+    if (!this.context) return;
+    this.resizeObserver = new ResizeObserver(() => this.resize());
+    this.resizeObserver.observe(canvas.parentElement);
+    canvas.addEventListener('pointerdown', event => this.pointerDown(event));
+    canvas.addEventListener('pointermove', event => this.pointerMove(event));
+    canvas.addEventListener('pointerup', event => this.pointerUp(event));
+    canvas.addEventListener('pointercancel', event => this.pointerUp(event));
+    canvas.addEventListener('wheel', event => this.zoom(event), { passive: false });
+  }
+
+  aggregate(source, minutes) {
+    const bucket = minutes * 60;
+    const groups = new Map();
+    source.forEach(item => {
+      const time = Math.floor(Number(item.t) / bucket) * bucket;
+      const values = { o:Number(item.o) / 1e18, h:Number(item.h) / 1e18, l:Number(item.l) / 1e18, c:Number(item.c) / 1e18, v:Number(item.v) / 1e18 };
+      if (!Object.values(values).every(Number.isFinite)) return;
+      const current = groups.get(time);
+      if (!current) groups.set(time, { t:time, ...values });
+      else {
+        current.h = Math.max(current.h, values.h);
+        current.l = Math.min(current.l, values.l);
+        current.c = values.c;
+        current.v += values.v;
+      }
+    });
+    return [...groups.values()].sort((a, b) => a.t - b.t);
+  }
+
+  setMarket(market) {
+    this.market = market;
+    this.source = verifiedCandles[market.address.toLowerCase()] || [];
+    this.offset = 0;
+    this.setRange(this.minutes);
+  }
+
+  setRange(minutes) {
+    this.minutes = minutes;
+    this.data = this.aggregate(this.source || [], minutes);
+    this.offset = 0;
+    this.visibleCount = clamp(this.data.length || 42, 24, 58);
+    this.empty.hidden = this.data.length > 0;
+    this.canvas.hidden = this.data.length === 0;
+    document.querySelectorAll('[data-chart-minutes]').forEach(button => button.classList.toggle('active', Number(button.dataset.chartMinutes) === minutes));
+    this.draw();
+  }
+
+  resize() {
+    if (!this.canvas || this.canvas.hidden) return;
+    const rect = this.canvas.parentElement.getBoundingClientRect();
+    const dpr = Math.min(devicePixelRatio || 1, 1.5);
+    this.width = Math.max(320, rect.width);
+    this.height = Math.max(260, rect.height);
+    this.canvas.width = Math.round(this.width * dpr);
+    this.canvas.height = Math.round(this.height * dpr);
+    this.canvas.style.width = `${this.width}px`;
+    this.canvas.style.height = `${this.height}px`;
+    this.context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.draw();
+  }
+
+  pointerDown(event) {
+    this.canvas.setPointerCapture(event.pointerId);
+    this.drag = { id:event.pointerId, x:event.clientX, offset:this.offset };
+    this.canvas.classList.add('dragging');
+  }
+
+  pointerMove(event) {
+    if (!this.drag || event.pointerId !== this.drag.id || !this.data.length) return;
+    const plotWidth = Math.max(1, this.width - 92);
+    const candleWidth = plotWidth / this.visibleCount;
+    const maxOffset = Math.max(0, this.data.length - this.visibleCount);
+    this.offset = clamp(this.drag.offset + (event.clientX - this.drag.x) / candleWidth, 0, maxOffset);
+    this.draw();
+  }
+
+  pointerUp(event) {
+    if (this.drag && event.pointerId === this.drag.id) this.drag = null;
+    this.canvas.classList.remove('dragging');
+  }
+
+  zoom(event) {
+    if (!this.data.length) return;
+    event.preventDefault();
+    const previous = this.visibleCount;
+    this.visibleCount = Math.round(clamp(previous + Math.sign(event.deltaY) * 5, 18, Math.min(90, this.data.length)));
+    this.offset = clamp(this.offset + (previous - this.visibleCount) * .5, 0, Math.max(0, this.data.length - this.visibleCount));
+    this.draw();
+  }
+
+  draw() {
+    if (!this.context || !this.width || !this.data.length) return;
+    const ctx = this.context;
+    const pad = { left:12, top:18, right:80, bottom:31 };
+    const plotWidth = this.width - pad.left - pad.right;
+    const plotHeight = this.height - pad.top - pad.bottom;
+    const count = Math.min(this.visibleCount, this.data.length);
+    const start = Math.max(0, Math.round(this.data.length - count - this.offset));
+    const visible = this.data.slice(start, start + count);
+    const low = Math.min(...visible.map(item => item.l));
+    const high = Math.max(...visible.map(item => item.h));
+    const range = Math.max(high - low, high * .015, 1e-12);
+    const y = value => pad.top + (high - value) / range * plotHeight * .78;
+    const maxVolume = Math.max(...visible.map(item => item.v), 1);
+    const candleStep = plotWidth / Math.max(visible.length, 1);
+    const bodyWidth = Math.max(2, Math.min(12, candleStep * .58));
+    ctx.clearRect(0, 0, this.width, this.height);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(128,205,234,.12)';
+    ctx.fillStyle = '#6f8795';
+    ctx.lineWidth = 1;
+    ctx.font = '11px ui-monospace, SFMono-Regular, Consolas, monospace';
+    ctx.textAlign = 'left';
+    for (let index = 0; index < 5; index += 1) {
+      const gy = pad.top + index / 4 * plotHeight * .78;
+      const value = high - index / 4 * range;
+      ctx.beginPath(); ctx.moveTo(pad.left, gy + .5); ctx.lineTo(this.width - pad.right + 8, gy + .5); ctx.stroke();
+      ctx.fillText(value.toLocaleString(undefined, { maximumFractionDigits:9 }), this.width - pad.right + 15, gy + 4);
+    }
+    for (let index = 0; index < 6; index += 1) {
+      const gx = pad.left + index / 5 * plotWidth;
+      ctx.beginPath(); ctx.moveTo(gx + .5, pad.top); ctx.lineTo(gx + .5, this.height - pad.bottom); ctx.stroke();
+    }
+    visible.forEach((item, index) => {
+      const x = pad.left + (index + .5) * candleStep;
+      const up = item.c >= item.o;
+      const color = up ? '#63e6c0' : '#ff708b';
+      const openY = y(item.o);
+      const closeY = y(item.c);
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.globalAlpha = .98;
+      ctx.beginPath(); ctx.moveTo(x + .5, y(item.h)); ctx.lineTo(x + .5, y(item.l)); ctx.stroke();
+      ctx.fillRect(x - bodyWidth / 2, Math.min(openY, closeY), bodyWidth, Math.max(2, Math.abs(closeY - openY)));
+      const volumeHeight = item.v / maxVolume * plotHeight * .16;
+      ctx.globalAlpha = .22;
+      ctx.fillRect(x - bodyWidth / 2, this.height - pad.bottom - volumeHeight, bodyWidth, volumeHeight);
+    });
+    const last = visible[visible.length - 1];
+    const priceY = y(last.c);
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#65dfff';
+    ctx.setLineDash([4, 5]);
+    ctx.beginPath(); ctx.moveTo(pad.left, priceY + .5); ctx.lineTo(this.width - pad.right + 8, priceY + .5); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#c8f5ff';
+    ctx.fillText(last.c.toLocaleString(undefined, { maximumFractionDigits:9 }), this.width - pad.right + 15, priceY - 7);
+    ctx.fillStyle = '#718997';
+    ctx.textAlign = 'center';
+    [0, Math.floor((visible.length - 1) / 2), visible.length - 1].forEach(index => {
+      const date = new Date(visible[index].t * 1000);
+      ctx.fillText(this.minutes >= 1440 ? date.toLocaleDateString(undefined, { month:'short', day:'numeric' }) : date.toLocaleTimeString(undefined, { hour:'2-digit', minute:'2-digit' }), pad.left + (index + .5) * candleStep, this.height - 8);
+    });
+    ctx.restore();
+  }
 }
+
+const marketChart = new VerifiedMarketChart(document.querySelector('#detail-chart'));
+
+function drawMarketChart(market) {
+  marketChart.setMarket(market);
+}
+
+document.querySelectorAll('[data-chart-minutes]').forEach(button => {
+  button.addEventListener('click', () => marketChart.setRange(Number(button.dataset.chartMinutes)));
+});
 
 function selectMarket(id) {
   const market = marketData.find(item => item.id === Number(id));
