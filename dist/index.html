@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#03070d">
+  <meta name="description" content="DENOM is a launchpad where coins can be priced in currencies, commodities and culture.">
+  <title>DENOM — Price anything in anything</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2303070d'/%3E%3Ccircle cx='32' cy='32' r='20' fill='%234cd8ff'/%3E%3Cpath d='M23 20v24h7c9 0 14-5 14-12S39 20 30 20h-7z' fill='none' stroke='%2303070d' stroke-width='4'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <div class="loader" aria-hidden="true"><strong>DENOM</strong><div><i></i></div></div>
+  <div class="ambient" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="grain" aria-hidden="true"></div>
+  <canvas id="matter" aria-hidden="true"></canvas>
+  <div class="canvas-fallback" aria-hidden="true">DENOM</div>
+
+  <header class="topbar">
+    <a href="#home" class="wordmark" data-close-app aria-label="DENOM home"><i aria-hidden="true"></i><b>DENOM</b></a>
+    <nav aria-label="Product navigation">
+      <button type="button" data-app-view="explore">Explore</button>
+      <button type="button" data-app-view="launch">Launch</button>
+      <button type="button" data-app-view="make-pair">Make a pair</button>
+      <button type="button" data-app-view="exchange">Exchange</button>
+      <button type="button" data-app-view="portfolio">Portfolio</button>
+      <button type="button" data-app-view="earnings">Earnings</button>
+      <button type="button" data-app-view="rates">Rates</button>
+    </nav>
+    <button class="connect-wallet glass-wallet" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 6.5h12.8a2.2 2.2 0 0 1 2.2 2.2v8.1a2.2 2.2 0 0 1-2.2 2.2H5.7a2.2 2.2 0 0 1-2.2-2.2V5.6A2.6 2.6 0 0 1 6.1 3h9.4"/><path d="M15 11.2h4.5v3.7H15a1.85 1.85 0 1 1 0-3.7Z"/></svg>
+      <b>Connect wallet</b>
+    </button>
+  </header>
+
+  <main id="main">
+    <section class="scene hero-scene" id="home" data-scene="0">
+      <div class="scene-inner hero-ui">
+        <h1 class="sr-only">DENOM</h1>
+        <button class="hero-action ca-action" id="copy-ca" type="button">
+          <span>CA COMING SOON</span>
+        </button>
+        <button class="hero-action social-action" id="social-action" type="button">
+          <span>FOLLOW DENOM</span>
+        </button>
+        <footer class="scene-footer"><p>Memecoins priced in currencies, commodities and culture.</p><b>ROBINHOOD CHAIN / 001</b></footer>
+      </div>
+    </section>
+
+    <section class="scene universe-scene" data-scene="1">
+      <div class="scene-inner">
+        <h2 class="scene-title title-left">Familiar value.<br><em>New markets.</em></h2>
+        <p class="scene-copy copy-left">Choose what one coin is worth. The unit becomes part of the market forever.</p>
+        <div class="unit-index" aria-label="Example denominations">
+          <span><img src="assets/icons/flag-us.svg" alt="">USD</span><span><img src="assets/icons/flag-jp.svg" alt="">JPY</span><span><img src="assets/icons/gold.svg" alt="">GOLD</span><span><img src="assets/icons/oil.svg" alt="">OIL</span><span><img src="assets/icons/cards.svg" alt="">CARDS</span><span>+267</span>
+        </div>
+        <p class="scene-statement">Anything can become<br>a unit of value.</p>
+      </div>
+    </section>
+
+    <section class="scene curve-scene" data-scene="2">
+      <div class="scene-inner">
+        <h2 class="scene-title title-right">Open from<br><em>block one.</em></h2>
+        <p class="scene-copy copy-right">A fixed supply enters a live curve. Price discovery starts immediately.</p>
+        <div class="market-terminal motion-detail" aria-label="Live DENOM markets preview">
+          <header><span>LIVE MARKETS</span><b>310 LISTED</b></header>
+          <div class="terminal-list">
+            <button type="button" data-app-view="explore">
+              <span class="terminal-rank">01</span>
+              <img src="https://beige-realistic-egret-294.mypinata.cloud/ipfs/bafybeieep2bshusefkz5zjp6xafmeppliwxbv752yfy6tqh7dlv3dwyyga" alt="Artificial Indian">
+              <strong>Artificial Indian<small>AI</small></strong>
+              <span class="terminal-unit"><img src="assets/icons/flag-in.svg" alt="">INR</span>
+              <b>$9,825<small>GRADUATED</small></b>
+            </button>
+            <button type="button" data-app-view="explore">
+              <span class="terminal-rank">02</span>
+              <img src="https://beige-realistic-egret-294.mypinata.cloud/ipfs/bafybeifpaqwrk7wz5meblni7mq3sebzwsqednhqdngww4evc7jrqwdyc7i" alt="ANIME">
+              <strong>ANIME<small>ANIME</small></strong>
+              <span class="terminal-unit"><img src="assets/icons/flag-jp.svg" alt="">JPY</span>
+              <b>$7,958<small>CURVE COMPLETE</small></b>
+            </button>
+            <button type="button" data-app-view="explore">
+              <span class="terminal-rank">03</span>
+              <img src="https://beige-realistic-egret-294.mypinata.cloud/ipfs/bafybeiavsi32s2772xrt4y477qvsgusvcmgzksry5mznvfj2odf4xbetoi" alt="NeighbourHOOD">
+              <strong>NeighbourHOOD<small>NHOOD</small></strong>
+              <span class="terminal-unit"><img src="assets/icons/flag-kr.svg" alt="">KRW</span>
+              <b>$6,448<small>19% CURVE</small></b>
+            </button>
+          </div>
+          <footer><span>TOP MARKET CAP</span><button type="button" data-app-view="explore">Explore markets</button></footer>
+          <div class="terminal-dust" aria-hidden="true"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene portal-scene" data-scene="3">
+      <div class="scene-inner">
+        <h2 class="scene-title title-center">Give value<br><em>its own market.</em></h2>
+        <p class="scene-copy copy-final-left">Create the unit. Set the terms. Let the market decide.</p>
+        <p class="scene-copy copy-final-right">Permanent liquidity after graduation.</p>
+        <button class="enter-app" type="button" data-app-view="launch">Launch a market</button>
+        <div class="final-signature"><span>DENOM</span><b>PRICE ANYTHING IN ANYTHING</b></div>
+      </div>
+    </section>
+  </main>
+
+  <section class="app-shell" id="denom-app" aria-label="DENOM application" hidden>
+    <div class="app-frame">
+      <header class="app-intro">
+        <button type="button" class="back-site" data-close-app>Close app</button>
+      </header>
+
+      <section class="app-view explore-view" data-view="explore" hidden>
+        <header class="product-heading">
+          <div><span>MARKET</span><h2>Explore the market</h2><p>Find your next coin. Start with a unit.</p></div>
+          <label class="product-search"><span>⌕</span><input id="market-search" type="search" placeholder="Search coins, tickers or units" autocomplete="off"></label>
+        </header>
+        <div class="segmented market-sort" aria-label="Sort markets">
+          <button type="button" class="active" data-sort="cap">Top market cap</button><button type="button" data-sort="new">Newest</button><button type="button" data-sort="volume">Most traded</button>
+        </div>
+        <div class="unit-filter" aria-label="Filter units">
+          <button type="button" class="active" data-unit="all">All units <b>310</b></button><button type="button" data-unit="INR"><img src="assets/icons/flag-in.svg" alt="">INR <b>45</b></button><button type="button" data-unit="JPY"><img src="assets/icons/flag-jp.svg" alt="">JPY <b>38</b></button><button type="button" data-unit="CNY"><img src="assets/icons/flag-cn.svg" alt="">CNY <b>31</b></button><button type="button" data-unit="KRW"><img src="assets/icons/flag-kr.svg" alt="">KRW <b>20</b></button><button type="button" data-unit="EUR"><img src="assets/icons/flag-eu.svg" alt="">EUR <b>45</b></button><button type="button" data-unit="GBP"><img src="assets/icons/flag-gb.svg" alt="">GBP <b>10</b></button>
+        </div>
+        <div class="data-table market-table">
+          <div class="table-head"><span># / Coin</span><span>Unit</span><span>Price</span><span>Market cap</span><span>Graduation</span></div>
+          <div id="market-body"></div>
+          <div class="market-empty" hidden>No markets match this filter.</div>
+          <button class="load-markets" id="load-markets" type="button">Load more markets</button>
+        </div>
+      </section>
+
+      <section class="app-view market-detail-view" data-view="market-detail" hidden>
+        <button class="detail-back" type="button" data-app-view="explore">Back to markets</button>
+        <header class="detail-hero">
+          <div class="detail-identity"><img id="detail-mark" src="https://beige-realistic-egret-294.mypinata.cloud/ipfs/bafybeieep2bshusefkz5zjp6xafmeppliwxbv752yfy6tqh7dlv3dwyyga" alt="Artificial Indian"><div><span id="detail-unit">INR MARKET</span><h2 id="detail-name">Artificial Indian</h2><p><b id="detail-ticker">AI</b><code id="detail-address">0x9697…08a4</code></p></div></div>
+          <dl><div><dt>PRICE</dt><dd id="detail-price">€0.001842</dd></div><div><dt>MARKET CAP</dt><dd id="detail-cap">$184,200</dd></div><div><dt>CURVE</dt><dd id="detail-curve">72%</dd></div></dl>
+        </header>
+        <div class="fee-strip"><span>Every trade costs <b>4.00%</b></span><i></i><em>1.00% platform</em><em>3.00% creator</em><em>No holder fee</em></div>
+        <div class="trade-layout">
+          <section class="trade-chart"><header><b>Price in <span id="chart-unit">EUR</span></b><div class="segmented"><button>1m</button><button class="active">5m</button><button>1h</button><button>1d</button></div></header><svg id="detail-chart" viewBox="0 0 900 390" preserveAspectRatio="none" aria-label="Market candlestick chart"></svg></section>
+          <aside class="trade-ticket"><p>Live bonding curve. Trades settle on Robinhood Chain.</p><div class="segmented trade-mode"><button class="active" type="button">Buy</button><button type="button">Sell</button></div><span>Pay with</span><div class="segmented pay-assets"><button class="active" type="button"><img src="assets/icons/eth.svg" alt="">ETH</button><button type="button"><img src="assets/icons/usdg.svg" alt="">USDG</button><button type="button" id="detail-pay-unit">EUR</button></div><label>Spend<input type="number" placeholder="0.00"></label><button class="primary-action connect-wallet" type="button"><b>Connect wallet to trade</b></button></aside>
+        </div>
+        <section class="graduation-card"><header><b id="graduation-label">Bonding curve</b><strong id="graduation-percent">72%</strong></header><i><span id="graduation-bar"></span></i><p id="graduation-copy">At graduation, liquidity moves to a permanent pool and remains available for open trading.</p></section>
+        <div class="market-ledger">
+          <section class="ledger-card recent-trades">
+            <header><h3>Recent trades</h3><span>LIVE</span></header>
+            <div class="ledger-head"><span>Side</span><span id="trade-unit-head">INR</span><span id="trade-token-head">AI</span><span>Trader</span><span>When</span></div>
+            <div id="recent-trades-body"></div>
+          </section>
+          <section class="ledger-card holders-card">
+            <header><h3>Holders from curve trades</h3><span>TOP 8</span></header>
+            <div id="holders-body"></div>
+          </section>
+        </div>
+        <div class="market-meta-grid">
+          <section class="ledger-card contract-card">
+            <h3>Onchain details</h3>
+            <dl><div><dt>Contract</dt><dd id="detail-contract">0x9697…08a4</dd></div><div><dt>Creator</dt><dd id="detail-creator">0xAf11…0A8D</dd></div><div><dt id="detail-unit-label">INR token</dt><dd id="detail-unit-contract">0xBc91…0987</dd></div></dl>
+          </section>
+          <section class="ledger-card locked-card">
+            <h3>Locked &amp; burned</h3>
+            <p id="locked-copy">Nothing is locked or burned against this coin. If the developer locks or burns any, it appears here from the chain.</p>
+            <small>Locking, burning and vesting are verified onchain.</small>
+          </section>
+        </div>
+      </section>
+
+      <section class="app-view launch-view" data-view="launch" hidden>
+        <header class="product-heading simple">
+          <div><span>LAUNCH</span><h2>Launch a coin</h2><p>Pick a unit. The coin is priced in it, bought with it and pays you in it.</p></div>
+        </header>
+        <form class="launch-layout" id="launch-form">
+          <div class="launch-main">
+            <section class="form-section">
+              <header><b>01</b><div><h3>Create your identity</h3><p>A name and a story your community can get behind.</p></div></header>
+              <div class="identity-grid">
+                <button type="button" class="art-drop"><span>＋</span>Add art</button>
+                <div class="field-stack">
+                  <label>Name<small>Shown everywhere the coin appears.</small><input name="name" maxlength="32" placeholder="Maple" required></label>
+                  <label>Ticker<small>Two to ten characters, no spaces.</small><input name="ticker" maxlength="10" placeholder="MAPLE" required></label>
+                </div>
+                <label class="wide">Description<small>Optional. What the coin is about.</small><textarea name="description" maxlength="180" placeholder="A coin for people who like maple syrup."></textarea></label>
+                <div class="link-fields wide"><label>X handle<input placeholder="@project"></label><label>Telegram<input placeholder="t.me/project"></label><label>Website<input placeholder="project.xyz"></label></div>
+              </div>
+            </section>
+            <section class="form-section terms-section">
+              <header><b>02</b><div><h3>Set your terms</h3><p>Choose the unit at the heart of your coin.</p></div></header>
+              <label class="field-title">Pair<small>Fixed at launch. Add up to five.</small></label>
+              <div class="segmented pair-kind"><button type="button" class="active">A listed pair</button><button type="button">Made by someone</button><button type="button">Any token</button></div>
+              <button class="pair-select" type="button" id="launch-pair-select" aria-expanded="false" aria-controls="launch-pair-menu"><i><img src="assets/icons/flag-eu.svg" alt=""></i><strong>EUR <small>Euro</small></strong><span>⌄</span></button>
+              <div class="pair-menu" id="launch-pair-menu" hidden>
+                <button type="button" data-launch-pair="EUR" data-name="Euro" data-icon="assets/icons/flag-eu.svg"><img src="assets/icons/flag-eu.svg" alt=""><strong>EUR<small>Euro</small></strong><span>Selected</span></button>
+                <button type="button" data-launch-pair="USD" data-name="US Dollar" data-icon="assets/icons/flag-us.svg"><img src="assets/icons/flag-us.svg" alt=""><strong>USD<small>US Dollar</small></strong><span></span></button>
+                <button type="button" data-launch-pair="JPY" data-name="Japanese Yen" data-icon="assets/icons/flag-jp.svg"><img src="assets/icons/flag-jp.svg" alt=""><strong>JPY<small>Japanese Yen</small></strong><span></span></button>
+                <button type="button" data-launch-pair="GOLD" data-name="Gold / oz" data-icon="assets/icons/gold.svg"><img src="assets/icons/gold.svg" alt=""><strong>GOLD<small>Gold / oz</small></strong><span></span></button>
+              </div>
+              <button class="add-pair" type="button">＋ Add another pair</button>
+              <div class="fee-box">
+                <label>Creator tax <small>Your cut of every trade.</small><output id="creator-output">0.00%</output><input id="creator-fee" type="range" min="0" max="5" step=".5" value="0"></label>
+                <label>Holder fee <small>Goes back to holders.</small><output id="holder-output">0.00%</output><input id="holder-fee" type="range" min="0" max="5" step=".5" value="0"></label>
+                <div class="total-fee"><span>Every trade costs</span><strong id="total-fee">1.00%</strong></div>
+              </div>
+              <label class="field-title">Pay your first buy with<small>It is swapped for the pair in the same transaction.</small></label>
+              <div class="segmented pay-kind"><button type="button" class="active" data-pay="ETH"><img src="assets/icons/eth.svg" alt="">ETH</button><button type="button" data-pay="USDG"><img src="assets/icons/usdg.svg" alt="">USDG</button><button type="button" data-pay="EUR"><img src="assets/icons/flag-eu.svg" alt="">EUR</button></div>
+              <label class="amount-field">First buy<input name="first-buy" type="number" min="0" step="any" placeholder="0.00"><b id="pay-symbol">ETH</b></label>
+            </section>
+          </div>
+          <aside class="launch-summary">
+            <span>YOUR LAUNCH AT A GLANCE</span>
+            <div class="summary-identity"><i id="launch-symbol">✳</i><strong id="launch-name">Your next big idea<small id="launch-ticker">TICKER · EUR</small></strong></div>
+            <dl><div><dt>Priced in</dt><dd>EUR Euro</dd></div><div><dt>Migrates at</dt><dd>about 4× launch price</dd></div><div><dt>Trade fee</dt><dd id="summary-fee">1%, split 70/30</dd></div><div><dt>Launch fee</dt><dd>0.0005 ETH</dd></div><div><dt>Tradable</dt><dd>from the first block</dd></div></dl>
+            <ul><li>Name the coin</li><li>Give it a ticker</li><li>Enter a first buy</li></ul>
+            <button type="submit" class="primary-action">Review launch</button>
+          </aside>
+        </form>
+      </section>
+
+      <section class="app-view make-view" data-view="make-pair" hidden>
+        <header class="product-heading simple"><div><span>MAKE A PAIR</span><h2>Invent a unit</h2><p>Say what one is worth and put the whole supply on sale at that price.</p></div></header>
+        <form class="pair-form" id="pair-form">
+          <div class="pair-fields">
+            <button type="button" class="art-drop"><span>＋</span>Add art</button>
+            <div class="field-stack">
+              <label>Name<small>Shown everywhere the pair appears.</small><input name="pair-name" placeholder="Cash Cat" required></label>
+              <label>Ticker<small>Two to ten characters, no spaces.</small><input name="pair-ticker" placeholder="CASHCAT" required></label>
+            </div>
+            <label class="wide">Code<small>How coins priced in it refer to it. First come, and permanent.</small><input name="pair-code" placeholder="CASHCAT" required></label>
+            <label class="wide">Description<small>Optional. What the pair is.</small><textarea placeholder="One cash cat."></textarea></label>
+            <label class="wide">What one unit is worth<small>In dollars.</small><div class="input-unit"><input name="pair-value" type="number" min=".000001" step="any" value="10"><b>USD</b></div></label>
+            <div class="pair-proof wide"><span>Supply</span><strong>1,000,000,000</strong><span>Creation cost</span><strong>One transaction</strong></div>
+          </div>
+          <aside class="pair-preview"><span>PAIR PREVIEW</span><div class="preview-token">CC</div><h3 id="pair-preview-name">Cash Cat</h3><p><b id="pair-preview-code">CASHCAT</b> / USD</p><dl><div><dt>Reference value</dt><dd id="pair-preview-value">$10.00</dd></div><div><dt>Supply</dt><dd>1B</dd></div><div><dt>Owner funding</dt><dd>$0</dd></div></dl><button type="submit" class="primary-action">Review pair</button></aside>
+        </form>
+      </section>
+
+      <section class="app-view exchange-view" data-view="exchange" hidden>
+        <header class="product-heading simple"><div><span>EXCHANGE</span><h2>Get the unit you want to trade in.</h2><p>Swap USDG or ETH for a listed unit first.</p></div></header>
+        <div class="exchange-metrics"><article><span>PAIRS LISTED</span><strong>310</strong><small>also on Uniswap</small></article><article><span>RATE CHECKS PASSING</span><strong>308</strong><small>freshness and sources</small></article></div>
+        <div class="exchange-tools"><label class="product-search"><span>⌕</span><input type="search" placeholder="Search pair or code"></label><div class="region-chips"><button class="active">All</button><button>Americas 32</button><button>Europe 29</button><button>Asia Pacific 39</button><button>Metals 12</button><button>Energy 9</button><button>Cards 24</button></div></div>
+        <div class="exchange-grid">
+          <div class="pair-list"><header><span>Choose a pair</span><b>310 available</b></header><button class="active" data-pair="EUR" data-name="Euro" data-rate="$1.148" data-address="0xEf0f…9c9D" data-icon="assets/icons/flag-eu.svg"><i><img src="assets/icons/flag-eu.svg" alt=""></i><strong>EUR<small>Euro · 0xEf0f…9c9D</small></strong><b>$1.148</b><span>›</span></button><button data-pair="GBP" data-name="British Pound" data-rate="$1.338" data-address="0x71a2…18F4" data-icon="assets/icons/flag-gb.svg"><i><img src="assets/icons/flag-gb.svg" alt=""></i><strong>GBP<small>British Pound · 0x71a2…18F4</small></strong><b>$1.338</b><span>›</span></button><button data-pair="JPY" data-name="Japanese Yen" data-rate="$0.006373" data-address="0x9Bc1…11E8" data-icon="assets/icons/flag-jp.svg"><i><img src="assets/icons/flag-jp.svg" alt=""></i><strong>JPY<small>Japanese Yen · 0x9Bc1…11E8</small></strong><b>$0.006373</b><span>›</span></button><button data-pair="GOLD" data-name="Gold / oz" data-rate="$4,326" data-address="0xA012…6E10" data-icon="assets/icons/gold.svg"><i><img src="assets/icons/gold.svg" alt=""></i><strong>GOLD<small>Gold / oz · 0xA012…6E10</small></strong><b>$4,326</b><span>›</span></button><button data-pair="OIL" data-name="Brent crude" data-rate="$74.32" data-address="0x0A44…98F1" data-icon="assets/icons/oil.svg"><i><img src="assets/icons/oil.svg" alt=""></i><strong>OIL<small>Brent crude · 0x0A44…98F1</small></strong><b>$74.32</b><span>›</span></button></div>
+          <form class="swap-panel">
+            <span>EXCHANGE</span><h3>Swap into it.</h3><p>Exchange USDG for EUR to start trading EUR-priced coins.</p>
+            <div class="swap-pair"><i><img src="assets/icons/flag-eu.svg" alt=""></i><strong>EUR <small>Euro</small></strong><code>0xEf0f…9c9D</code></div>
+            <div class="segmented swap-mode"><button type="button" class="active">Buy</button><button type="button">Sell</button></div>
+            <label>Spend USDG<div><input type="number" placeholder="0.00"><b class="currency-label"><img src="assets/icons/usdg.svg" alt="">USDG</b></div></label>
+            <span class="swap-arrow">↓</span>
+            <label>Receive EUR<div><input type="number" placeholder="0.00"><b class="currency-label"><img src="assets/icons/flag-eu.svg" alt="">EUR</b></div></label>
+            <div class="swap-quote"><span>Indicative rate</span><b>1 USDG = 0.871 EUR</b><small>Network fee ≈ $0.04</small></div>
+            <button type="button" class="primary-action connect-wallet"><b>Connect wallet to swap</b></button>
+          </form>
+        </div>
+      </section>
+
+      <section class="app-view portfolio-view" data-view="portfolio" hidden>
+        <header class="product-heading simple"><div><span>PORTFOLIO</span><h2>Your positions</h2><p>Coins and permanent liquidity, connected to your wallet.</p></div></header>
+        <div class="portfolio-summary"><article><span>PORTFOLIO VALUE</span><strong>$0.00</strong><small>Connect wallet to load balances</small></article><article><span>COINS</span><strong>0</strong></article><article><span>LP POSITIONS</span><strong>0</strong></article></div>
+        <div class="empty-panel"><div class="segmented"><button class="active">Coins</button><button>Liquidity</button></div><i></i><h3>No positions yet</h3><p>Your coins and liquidity positions will appear here.</p><button type="button" class="connect-wallet primary-action"><b>Connect wallet</b></button></div>
+      </section>
+
+      <section class="app-view earnings-view" data-view="earnings" hidden>
+        <header class="product-heading simple"><div><span>EARNINGS</span><h2>Fees return to you</h2><p>Track creator taxes and liquidity revenue.</p></div></header>
+        <div class="earnings-board"><article><span>CLAIMABLE NOW</span><strong>$0.00</strong><button type="button" class="connect-wallet primary-action"><b>Connect wallet to claim</b></button></article><article><span>PLATFORM FEE ROUTING</span><div><strong>70%</strong><small>creator</small></div><div><strong>30%</strong><small>protocol</small></div></article></div>
+        <div class="data-table earnings-table"><div class="table-head"><span>Market</span><span>Volume</span><span>Your earnings</span></div><div class="empty-table"><h3>No active markets</h3><p>Launch a coin to begin earning from its trading flow.</p><button type="button" data-app-view="launch">Launch a coin</button></div></div>
+      </section>
+
+      <section class="app-view rates-view" data-view="rates" hidden>
+        <header class="product-heading"><div><span>RATES</span><h2>The reference universe</h2><p>Independent sources. Onchain keepers.</p></div><label class="product-search"><span>⌕</span><input id="rate-search" type="search" placeholder="Search units"></label></header>
+        <div class="segmented rate-tabs"><button class="active">All</button><button>Currencies</button><button>Commodities</button><button>Culture</button></div>
+        <div class="data-table rates-table"><div class="table-head"><span>Unit</span><span>Reference</span><span>24H</span><span>Sources</span></div><article data-rate-type="currencies"><strong class="rate-asset"><img src="assets/icons/flag-us.svg" alt=""><span>US Dollar <small>USD</small></span></strong><b>$1.0000</b><em>BASE</em><span><i></i> 2 / 2</span></article><article data-rate-type="currencies"><strong class="rate-asset"><img src="assets/icons/flag-eu.svg" alt=""><span>Euro <small>EUR</small></span></strong><b>$1.1482</b><em>+0.16%</em><span><i></i> 2 / 2</span></article><article data-rate-type="commodities"><strong class="rate-asset"><img src="assets/icons/gold.svg" alt=""><span>Gold <small>XAU</small></span></strong><b>$4,326.18</b><em>+0.82%</em><span><i></i> 2 / 2</span></article><article data-rate-type="commodities"><strong class="rate-asset"><img src="assets/icons/oil.svg" alt=""><span>Brent crude <small>OIL</small></span></strong><b>$74.32</b><em class="down">−1.14%</em><span><i></i> 2 / 2</span></article><article data-rate-type="currencies"><strong class="rate-asset"><img src="assets/icons/flag-jp.svg" alt=""><span>Japanese yen <small>JPY</small></span></strong><b>¥158.42</b><em>+0.21%</em><span><i></i> 2 / 2</span></article><article data-rate-type="culture"><strong class="rate-asset"><img src="assets/icons/cards.svg" alt=""><span>Trading cards <small>CARDS</small></span></strong><b>Index 842.1</b><em>+2.08%</em><span><i></i> 2 / 2</span></article></div>
+      </section>
+    </div>
+  </section>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <dialog id="wallet-dialog" aria-labelledby="wallet-title"><button class="dialog-close" aria-label="Close">×</button><span>WALLET</span><h2 id="wallet-title">Connect your wallet</h2><p>No compatible wallet was detected.</p><button class="dialog-done primary-action">Close</button></dialog>
+  <dialog id="review-dialog" aria-labelledby="review-title"><button class="dialog-close" aria-label="Close">×</button><span>REVIEW</span><h2 id="review-title">Ready for the chain</h2><p>The interface is complete. Contract deployment will become active when the DENOM backend is connected.</p><button class="dialog-done primary-action">Back to editor</button></dialog>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

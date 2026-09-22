@@ -1,0 +1,1 @@
+{"name":"denom-experience","private":true,"type":"module","scripts":{"dev":"vite --config vite.config.js","check":"node --check dist/app.js && node --check dist/particles.js"},"devDependencies":{"vite":"^6.1.0"}}
