@@ -729,8 +729,8 @@ export class DenomMatter {
 
     if (objectMix > 0) {
       context.globalCompositeOperation = 'source-over';
-      context.globalAlpha = .68 * objectMix * (1 - flight * .2);
-      context.fillStyle = '#a9d8e9';
+      context.globalAlpha = .82 * objectMix * (1 - flight * .2);
+      context.fillStyle = '#4fc4f1';
       context.beginPath();
       const spread = scene === 2 ? .42 : 1;
       for (let index = 0; index < this.count; index += 1) {
