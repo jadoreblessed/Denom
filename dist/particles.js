@@ -9,7 +9,7 @@ const smooth = value => {
 export class DenomMatter {
   constructor(canvas, { reduced = false } = {}) {
     this.canvas = canvas;
-    this.context = canvas.getContext('2d', { alpha: true });
+    this.context = canvas.getContext('2d', { alpha: true, desynchronized: true });
     if (!this.context) throw new Error('Canvas unavailable');
     this.reduced = reduced;
     this.scene = 0;
@@ -19,18 +19,23 @@ export class DenomMatter {
     this.seedValue = 0xdecafbad;
     const cores = window.navigator?.hardwareConcurrency || 4;
     this.count = innerWidth < 680 ? (cores < 6 ? 850 : 1100) : innerWidth < 1100 ? (cores < 6 ? 1450 : 1850) : (cores < 6 ? 1950 : 2350);
-    this.frameInterval = innerWidth < 680 ? 28 : 20;
+    this.frameInterval = innerWidth < 680 ? 29 : 15;
     this.seed = new Float32Array(this.count);
     this.angle = new Float32Array(this.count);
+    this.cosAngle = new Float32Array(this.count);
+    this.sinAngle = new Float32Array(this.count);
     this.depth = new Float32Array(this.count);
     this.radius = new Float32Array(this.count);
     this.tint = new Uint8Array(this.count);
     this.variant = new Uint8Array(this.count);
     this.pointer = { x: -9999, y: -9999, active: false };
+    this.lastScene = -1;
 
     for (let index = 0; index < this.count; index += 1) {
       this.seed[index] = this.random();
       this.angle[index] = this.random() * TAU;
+      this.cosAngle[index] = Math.cos(this.angle[index]);
+      this.sinAngle[index] = Math.sin(this.angle[index]);
       this.depth[index] = this.random() * 2 - 1;
       this.radius[index] = 0.56 + this.random() * 0.72;
       this.tint[index] = Math.floor(this.random() * 5);
@@ -45,6 +50,16 @@ export class DenomMatter {
       this.resize();
       this.buildShapes();
     }, { passive: true });
+    addEventListener('pointermove', event => {
+      if (event.pointerType === 'touch') return;
+      this.pointer.x = event.clientX;
+      this.pointer.y = event.clientY;
+      this.pointer.active = true;
+    }, { passive: true });
+    addEventListener('pointerout', event => {
+      if (!event.relatedTarget) this.pointer.active = false;
+    }, { passive: true });
+    addEventListener('blur', () => { this.pointer.active = false; });
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) cancelAnimationFrame(this.frame);
       else if (this.running && !this.reduced) {
@@ -157,7 +172,7 @@ export class DenomMatter {
     const output = this.blank();
     const mainEnd = Math.floor(this.count * 0.84);
     const contractEnd = Math.floor(this.count * 0.92);
-    const sideY = this.mobile ? 0.265 : 0.22;
+    const sideY = this.mobile ? 0.16 : 0.15;
     this.writeText(output, 0, mainEnd, 'DENOM', { y: -0.035, width: 0.35, size: 420 });
     this.writeText(output, mainEnd, contractEnd, '0x', { x: -0.42, y: sideY, width: 0.088, size: 370, weight: 600 });
     this.writeText(output, contractEnd, this.count, 'X', { x: 0.42, y: sideY, width: 0.058, size: 410, weight: 600 });
@@ -311,30 +326,32 @@ export class DenomMatter {
     return { x: this.width * frame[0], y: this.height * frame[1], unit };
   }
 
-  project(shape, cursor, frame, scene, time) {
+  rotationFor(scene, time) {
+    let y = 0;
+    let x = 0;
+    if (scene === 1) {
+      y = time * 0.00012;
+      x = -0.12 + Math.sin(time * 0.00017) * 0.035;
+    } else if (scene === 2) {
+      y = Math.sin(time * 0.00019) * 0.3;
+      x = -0.24 + Math.sin(time * 0.00013) * 0.055;
+    } else if (scene === 3) {
+      y = time * 0.000085;
+      x = -0.18 + Math.sin(time * 0.00014) * 0.09;
+    }
+    return { cy: Math.cos(y), sy: Math.sin(y), cx: Math.cos(x), sx: Math.sin(x) };
+  }
+
+  project(shape, cursor, frame, rotation) {
     let x = shape[cursor];
     let y = shape[cursor + 1];
     let z = shape[cursor + 2];
-    const rotateY = angle => {
-      const rotatedX = x * Math.cos(angle) - z * Math.sin(angle);
-      z = x * Math.sin(angle) + z * Math.cos(angle);
-      x = rotatedX;
-    };
-    const rotateX = angle => {
-      const rotatedY = y * Math.cos(angle) - z * Math.sin(angle);
-      z = y * Math.sin(angle) + z * Math.cos(angle);
-      y = rotatedY;
-    };
-    if (scene === 1) {
-      rotateY(time * 0.00012);
-      rotateX(-0.12 + Math.sin(time * 0.00017) * 0.035);
-    } else if (scene === 2) {
-      rotateY(Math.sin(time * 0.00019) * 0.3);
-      rotateX(-0.24 + Math.sin(time * 0.00013) * 0.055);
-    } else if (scene === 3) {
-      rotateY(time * 0.000085);
-      rotateX(-0.18 + Math.sin(time * 0.00014) * 0.09);
-    }
+    const rotatedX = x * rotation.cy - z * rotation.sy;
+    z = x * rotation.sy + z * rotation.cy;
+    x = rotatedX;
+    const rotatedY = y * rotation.cx - z * rotation.sx;
+    z = y * rotation.sx + z * rotation.cx;
+    y = rotatedY;
     const perspective = 1 / (1 - z * 0.34);
     return {
       x: frame.x + x * frame.unit * perspective,
@@ -380,44 +397,27 @@ export class DenomMatter {
     this.frame = requestAnimationFrame(value => this.tick(value));
   }
 
-  drawHeroCage(time, alpha) {
-    if (alpha <= 0.005) return;
+  drawAtmosphere(time, scene, local, transition) {
+    // A continuous, low-cost ash layer survives every shape morph and every scene.
     const context = this.context;
-    const centerX = this.width * 0.5;
-    const centerY = this.height * 0.45;
-    const radiusX = Math.min(this.width * 0.36, this.height * 0.68);
-    const radiusY = Math.min(this.height * 0.28, this.width * 0.17);
-    const rotation = time * 0.00009;
-    context.save();
+    const progress = scene + local;
+    const motion = time * .026 + progress * 130;
+    const amount = this.mobile ? 104 : 220;
     context.globalCompositeOperation = 'screen';
-    context.lineWidth = 0.7;
-    const orbits = [
-      { tilt:-0.62, squash:.42, phase:0, color:'91,222,255', strength:.22 },
-      { tilt:0.08, squash:.26, phase:1.5, color:'126,174,205', strength:.14 },
-      { tilt:0.68, squash:.39, phase:3.1, color:'70,201,255', strength:.18 },
-      { tilt:-0.18, squash:.58, phase:4.4, color:'126,174,205', strength:.1 }
-    ];
-    orbits.forEach((orbit, orbitIndex) => {
-      context.beginPath();
-      for (let step = 0; step <= 88; step += 1) {
-        const angle = step / 88 * TAU + rotation * (orbitIndex % 2 ? -1 : 1) + orbit.phase;
-        const px = Math.cos(angle) * radiusX;
-        const py = Math.sin(angle) * radiusY * orbit.squash;
-        const x = centerX + px * Math.cos(orbit.tilt) - py * Math.sin(orbit.tilt);
-        const y = centerY + px * Math.sin(orbit.tilt) * .42 + py * Math.cos(orbit.tilt);
-        const clearWordmark = Math.abs(y - centerY) < this.height * .105 && Math.abs(x - centerX) < radiusX * .72;
-        if (step === 0 || clearWordmark) context.moveTo(x, y); else context.lineTo(x, y);
-      }
-      context.strokeStyle = `rgba(${orbit.color}, ${orbit.strength * alpha})`;
-      context.stroke();
-    });
-    context.beginPath();
-    context.ellipse(centerX, centerY, radiusX * 1.04, radiusY * 1.15, 0, Math.PI * .08, Math.PI * .92);
-    context.moveTo(centerX - radiusX * 1.0, centerY + radiusY * .34);
-    context.ellipse(centerX, centerY, radiusX * 1.04, radiusY * 1.15, 0, Math.PI * 1.08, Math.PI * 1.92);
-    context.strokeStyle = `rgba(108, 194, 224, ${0.12 * alpha})`;
-    context.stroke();
-    context.restore();
+    for (let index = 0; index < amount; index += 1) {
+      const seed = (index * .61803398875) % 1;
+      const lane = (index * .75487766625) % 1;
+      const x = ((seed * (this.width + 140) + motion * (.28 + lane * .72)) % (this.width + 140)) - 70;
+      const y = lane * this.height + Math.sin(time * .00042 + seed * 17 + progress * .85) * (13 + seed * 22) - progress * 11;
+      const edge = Math.min(1, Math.max(0, Math.min(x, this.width - x, y, this.height - y) / 54));
+      const visibility = (.32 + .28 * Math.sin(index * 13.1 + time * .0017) ** 2) * edge * (scene === 0 ? .6 : 1);
+      if (visibility < .015) continue;
+      const sprite = this.sprites[(index % 5) * 2];
+      const size = (2.4 + seed * 3.6) * (1 + transition * .5);
+      context.globalAlpha = visibility;
+      context.drawImage(sprite, x - size / 2, y - size / 2, size, size);
+    }
+    context.globalAlpha = 1;
   }
 
   drawAura(frame, alpha, size = 0.42) {
@@ -449,11 +449,7 @@ export class DenomMatter {
       const shard = 0.75 + seedC * 2.35;
       context.globalAlpha = alpha * Math.pow(1 - fall, .82) * (0.24 + seedC * 0.44);
       context.fillStyle = index % 6 < 2 ? '#d1f9ff' : index % 3 ? '#54ddff' : '#2789c8';
-      context.save();
-      context.translate(x, y);
-      context.rotate((seedC - 0.5) * 1.7 + Math.sin(time * 0.00018 + index) * 0.18);
-      context.fillRect(-shard * 0.5, -shard * 0.18, shard, 0.45 + seedB * 1.25);
-      context.restore();
+      context.fillRect(x - shard * .5, y - .4, shard, .8 + seedB * .8);
     }
     context.restore();
   }
@@ -468,13 +464,17 @@ export class DenomMatter {
     const fromFrame = this.frameFor(scene);
     const toFrame = this.frameFor(next);
     const intro = scene === 0 ? smooth((time - this.birth) / 1750) : 1;
-    const rawTransition = next === scene ? 0 : clamp((this.local - 0.66) / 0.32);
+    const rawTransition = next === scene ? 0 : clamp((this.local - 0.49) / 0.49);
     const transition = smooth(rawTransition);
     const flight = Math.sin(transition * Math.PI);
-    const cageAlpha = scene === 0 ? (1 - transition) * intro : 0;
+    const fromRotation = this.rotationFor(scene, time);
+    const toRotation = rawTransition > 0 ? this.rotationFor(next, time) : fromRotation;
+    const phase = transition * TAU * 2.2;
+    const phaseCos = Math.cos(phase);
+    const phaseSin = Math.sin(phase);
 
-    this.drawHeroCage(time, cageAlpha);
     this.drawAura({ x: mix(fromFrame.x, toFrame.x, transition), y: mix(fromFrame.y, toFrame.y, transition) }, 1 - flight * 0.65, scene === 0 ? 0.48 : 0.39);
+    this.drawAtmosphere(time, scene, this.local, flight);
     this.drawTerminalFragments(time, scene === 2 ? 1 - transition : 0);
     context.globalCompositeOperation = 'screen';
 
@@ -482,15 +482,16 @@ export class DenomMatter {
       const cursor = index * 3;
       const seed = this.seed[index];
       const angle = this.angle[index];
+      const cosine = this.cosAngle[index];
+      const sine = this.sinAngle[index];
       const depth = this.depth[index];
-      const a = this.project(from, cursor, fromFrame, scene, time);
-      const b = rawTransition > 0 ? this.project(to, cursor, toFrame, next, time) : a;
+      const a = this.project(from, cursor, fromFrame, fromRotation);
+      const b = rawTransition > 0 ? this.project(to, cursor, toFrame, toRotation) : a;
       const visualDepth = mix(a.z, b.z, transition);
       const depthLight = clamp((visualDepth + 0.46) / 0.92);
       const arc = (0.12 + seed * 0.28) * Math.min(this.width, this.height) * flight;
-      const direction = angle + scene * 1.31;
-      const driftX = Math.cos(direction) * arc + (scene % 2 ? -1 : 1) * arc * 0.16;
-      const driftY = Math.sin(direction) * arc * 0.6 - arc * 0.13;
+      const driftX = cosine * arc + (scene % 2 ? -1 : 1) * arc * 0.16;
+      const driftY = sine * arc * 0.6 - arc * 0.13;
       let x = mix(a.x, b.x, transition) + driftX + depth * 7 * flight;
       let y = mix(a.y, b.y, transition) + driftY - Math.abs(depth) * 4 * flight;
 
@@ -501,12 +502,12 @@ export class DenomMatter {
         const focusY = mix(fromFrame.y, toFrame.y, transition);
         const relativeX = x - focusX;
         const relativeY = y - focusY;
-        const twist = flight * (0.42 + seed * 0.92) * (scene % 2 ? -1 : 1);
-        const squeeze = 1 - flight * (0.22 + seed * 0.16);
-        const spunX = relativeX * Math.cos(twist) - relativeY * Math.sin(twist);
-        const spunY = relativeX * Math.sin(twist) + relativeY * Math.cos(twist);
-        x = focusX + spunX * squeeze + Math.cos(angle + transition * TAU * 2.2) * flight * (7 + seed * 15);
-        y = focusY + spunY * (squeeze + 0.08) + Math.sin(angle + transition * TAU * 2.2) * flight * (4 + seed * 9);
+        const twist = flight * (0.18 + seed * 0.24) * (scene % 2 ? -1 : 1);
+        const squeeze = 1 - flight * (0.13 + seed * 0.1);
+        const spunX = relativeX - relativeY * twist;
+        const spunY = relativeY + relativeX * twist;
+        x = focusX + spunX * squeeze + (cosine * phaseCos - sine * phaseSin) * flight * (7 + seed * 15);
+        y = focusY + spunY * (squeeze + 0.08) + (sine * phaseCos + cosine * phaseSin) * flight * (4 + seed * 9);
       }
 
       let particleIntro = 1;
@@ -518,12 +519,27 @@ export class DenomMatter {
         y = a.y + (1 - particleIntro) * Math.sin(spiral) * distance * 0.62;
       } else if (rawTransition === 0) {
         const breathe = Math.sin(time * 0.0005 + angle + visualDepth * 4) * (0.32 + depthLight * 0.68);
-        x += Math.cos(angle) * breathe;
-        y += Math.sin(angle) * breathe;
+        x += cosine * breathe;
+        y += sine * breathe;
+      }
+
+      let proximity = 0;
+      if (this.pointer.active && scene === 0 && rawTransition < .45) {
+        const dx = x - this.pointer.x;
+        const dy = y - this.pointer.y;
+        const distance2 = dx * dx + dy * dy;
+        const radius = this.mobile ? 108 : 170;
+        if (distance2 < radius * radius) {
+          const distance = Math.sqrt(distance2) || 1;
+          proximity = (1 - distance / radius) ** 2 * (1 - transition);
+          const offset = proximity * 64;
+          x += dx / distance * offset;
+          y += dy / distance * offset;
+        }
       }
 
       const depthScale = scene === 0 ? 0.94 + depthLight * 0.28 : 0.74 + depthLight * 0.7;
-      const particleRadius = this.radius[index] * depthScale * (scene === 0 ? 1.72 : 1.68) * (1 - flight * 0.1);
+      const particleRadius = this.radius[index] * depthScale * (scene === 0 ? 1.72 : 1.68) * (1 - flight * 0.1) * (1 + proximity * .35);
       const twinkle = flight > .05 && index % 17 === 0 ? .68 + .32 * Math.sin(time * .011 + angle * 4) : 1;
       const alpha = ((scene === 0 ? 0.82 : 0.78) + seed * 0.12 + depthLight * 0.1) * (scene === 0 && rawTransition === 0 ? particleIntro : 1) * twinkle;
       const sprite = this.sprites[this.tint[index] * 2 + this.variant[index]];
@@ -535,9 +551,14 @@ export class DenomMatter {
 
     context.globalCompositeOperation = 'source-over';
     context.globalAlpha = 1;
-    this.canvas.dataset.scene = String(scene);
-    this.canvas.dataset.object = ['wordmark', 'index-core', 'candle-field', 'market-core'][scene];
-    this.canvas.dataset.transition = rawTransition > 0 && rawTransition < 1 ? 'morphing' : 'formed';
-    this.canvas.dataset.pointer = this.pointer.active && scene === 0 ? 'magnetic' : 'idle';
+    if (this.lastScene !== scene) {
+      this.canvas.dataset.scene = String(scene);
+      this.canvas.dataset.object = ['wordmark', 'index-core', 'candle-field', 'market-core'][scene];
+      this.lastScene = scene;
+    }
+    const transitionState = rawTransition > 0 && rawTransition < 1 ? 'morphing' : 'formed';
+    if (this.canvas.dataset.transition !== transitionState) this.canvas.dataset.transition = transitionState;
+    const pointerState = this.pointer.active && scene === 0 ? 'magnetic' : 'idle';
+    if (this.canvas.dataset.pointer !== pointerState) this.canvas.dataset.pointer = pointerState;
   }
 }

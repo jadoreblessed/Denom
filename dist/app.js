@@ -96,16 +96,19 @@ function paintScroll() {
     const inner = scene.querySelector('.scene-inner');
     let opacity = 0;
     if (index === active) {
-      const exit = active === scenes.length - 1 ? 1 : 1 - smooth((local - 0.72) / 0.26);
+      const exit = active === scenes.length - 1 ? 1 : 1 - smooth((local - 0.53) / 0.43);
       opacity = exit;
     }
     if (reduced) opacity = index === active ? 1 : 0;
     inner.style.opacity = opacity.toFixed(3);
-    inner.style.transform = reduced ? 'none' : `translate3d(0, ${(1 - opacity) * 18}px, 0)`;
+    // Pin the entering panel during its first viewport of travel. Without this,
+    // the canvas morphs on time but the section's text remains below the fold.
+    const beforeSticky = index === active ? Math.max(0, scene.offsetTop - y) : 0;
+    inner.style.transform = reduced ? 'none' : `translate3d(0, ${(-beforeSticky + (1 - opacity) * 18).toFixed(2)}px, 0)`;
     inner.style.pointerEvents = opacity > 0.55 ? 'auto' : 'none';
 
-    const enterBase = reduced ? 1 : index === active ? smooth((local + 0.018) / 0.075) : 0;
-    const leaveBase = reduced || index !== active || active === scenes.length - 1 ? 0 : smooth((local - 0.7) / 0.28);
+    const enterBase = reduced ? 1 : index === active ? smooth((local + 0.06) / 0.075) : 0;
+    const leaveBase = reduced || index !== active || active === scenes.length - 1 ? 0 : smooth((local - 0.51) / 0.45);
     const motion = landingMotion[index];
     motion.words.forEach((word, wordIndex) => {
       const stagger = Math.min(0.18, wordIndex * 0.022);
@@ -128,7 +131,7 @@ function paintScroll() {
     });
   });
   document.body.dataset.scene = String(active);
-  document.body.style.setProperty('--handoff', active === scenes.length - 1 ? '0' : smooth((local - 0.66) / 0.32).toFixed(3));
+  document.body.style.setProperty('--handoff', active === scenes.length - 1 ? '0' : smooth((local - 0.49) / 0.49).toFixed(3));
   matter?.setScroll(active, local);
 }
 
