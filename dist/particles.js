@@ -603,7 +603,7 @@ export class DenomMatter {
     if (scene === 0) {
       const elapsed = time - this.birth;
       const cohesion = 1 - smooth(transition / 0.62);
-      context.globalAlpha = cohesion * 0.88;
+      context.globalAlpha = cohesion * 0.8;
       if (this.pointer.active && rawTransition < .45) {
         // The fine grain must leave with the large particles under the cursor.
         // Clip only its local area; the rest of the wordmark stays dense.
@@ -630,7 +630,7 @@ export class DenomMatter {
           const order = glyph.index === 0 ? slice / slices : (slices - slice - 1) / slices;
           const arrival = softer((elapsed - 2800 - order * 1100) / 1550);
           if (arrival <= 0) continue;
-          context.globalAlpha = cohesion * arrival * 0.88;
+          context.globalAlpha = cohesion * arrival * 0.8;
           const drift = (1 - arrival) * (order - 0.5) * 38;
           context.drawImage(glyph.canvas, from, 0, width, glyph.canvas.height,
             glyph.x + from + drift + breath, glyph.y + (1 - arrival) * Math.sin(slice * 2.4) * 15 - breath * 0.5,
@@ -713,11 +713,11 @@ export class DenomMatter {
       const particleRadius = this.radius[index] * depthScale * (scene === 0 ? 1.72 : 1.68) * (1 - flight * 0.1) * (1 + proximity * .35);
       const twinkle = flight > .05 && index % 17 === 0 ? .8 + .2 * Math.sin(time * .005 + angle * 4) : scene === 0 && rawTransition === 0 && index % 13 === 0 ? .9 + .1 * Math.sin(time * .0012 + angle * 4) : 1;
       const brightFleck = index % 31 === 0;
-      const heroAlpha = (0.82 + seed * 0.12 + depthLight * 0.1) * (scene === 0 && rawTransition === 0 ? particleIntro : 1) * twinkle;
+      const heroAlpha = (0.59 + seed * 0.1 + depthLight * 0.09) * (scene === 0 && rawTransition === 0 ? particleIntro : 1) * twinkle;
       const grainAlpha = 0.22 + seed * 0.09 + depthLight * 0.12 + (brightFleck ? 0.25 : 0);
       const alpha = mix(heroAlpha, grainAlpha, objectMix);
       const sprite = this.sprites[this.tint[index] * 2 + this.variant[index]];
-      const spriteSize = particleRadius * mix(5.9, brightFleck ? 4.4 : 2.4, objectMix);
+      const spriteSize = particleRadius * mix(4.7, brightFleck ? 4.4 : 2.4, objectMix);
       context.globalAlpha = alpha;
 
       context.drawImage(sprite, x - spriteSize / 2, y - spriteSize / 2, spriteSize, spriteSize);
@@ -729,19 +729,24 @@ export class DenomMatter {
 
     if (objectMix > 0) {
       context.globalCompositeOperation = 'source-over';
-      context.globalAlpha = .82 * objectMix * (1 - flight * .2);
-      context.fillStyle = '#4fc4f1';
+      const accentGrains = new Path2D();
       context.beginPath();
       const spread = scene === 2 ? .42 : 1;
       for (let index = 0; index < this.count; index += 1) {
         const x = this.screenX[index];
         const y = this.screenY[index];
+        const grain = this.tint[index] === 3 ? accentGrains : context;
         for (let spark = 0; spark < this.grainCount; spark += 1) {
           const slot = index * this.grainCount + spark;
-          context.rect(x + this.satelliteX[slot] * spread, y + this.satelliteY[slot] * spread, 1.1, 1.1);
+          grain.rect(x + this.satelliteX[slot] * spread, y + this.satelliteY[slot] * spread, 1.1, 1.1);
         }
       }
+      context.globalAlpha = .72 * objectMix * (1 - flight * .2);
+      context.fillStyle = '#8eaebc';
       context.fill();
+      context.globalAlpha = .67 * objectMix * (1 - flight * .2);
+      context.fillStyle = '#58bad1';
+      context.fill(accentGrains);
     }
 
     context.globalCompositeOperation = 'source-over';
