@@ -171,6 +171,9 @@ body[data-scene="0"] .ambient::before { opacity: .55; }
     linear-gradient(100deg, transparent 21%, rgba(90, 179, 208, .025) 47%, transparent 74%);
 }
 .portal-scene { height: 172svh; }
+.portal-scene .scene-inner {
+  background: radial-gradient(ellipse 29% 36% at 50% 53%, rgba(73, 165, 211, .095), transparent 83%);
+}
 .scene-inner {
   position: fixed;
   inset: 0;

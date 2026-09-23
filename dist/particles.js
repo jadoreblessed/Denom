@@ -9,6 +9,117 @@ const softer = value => {
   const t = clamp(value);
   return t * t * t * (t * (t * 6 - 15) + 10);
 };
+const fract = value => value - Math.floor(value);
+
+// Three different solids share one material model: a directed upper-left
+// light, a dimmer rear surface and a narrow ice highlight. The arrays store
+// geometry and light once; scrolling only projects them.
+function fillKnot(points, light, count, random) {
+  for (let index = 0; index < count; index += 1) {
+    const t = TAU * fract(index * .61803398875 + random() * .003);
+    const cross = TAU * fract(index * .75487766625 + random() * .003);
+    const c2 = Math.cos(2 * t);
+    const s2 = Math.sin(2 * t);
+    const c3 = Math.cos(3 * t);
+    const s3 = Math.sin(3 * t);
+    let tx = -.33 * s3 * c2 - .22 * (2 + c3) * s2;
+    let ty = -.33 * s3 * s2 + .22 * (2 + c3) * c2;
+    let tz = .39 * c3;
+    const tangentLength = Math.hypot(tx, ty, tz);
+    tx /= tangentLength;
+    ty /= tangentLength;
+    tz /= tangentLength;
+    const projection = c2 * tx + s2 * ty;
+    let nx = c2 - projection * tx;
+    let ny = s2 - projection * ty;
+    let nz = -projection * tz;
+    const normalLength = Math.hypot(nx, ny, nz);
+    nx /= normalLength;
+    ny /= normalLength;
+    nz /= normalLength;
+    const bx = ty * nz - tz * ny;
+    const by = tz * nx - tx * nz;
+    const bz = tx * ny - ty * nx;
+    const sweep = Math.cos(cross);
+    const depth = Math.sin(cross);
+    const radius = .067 + (random() - .5) * .006;
+    const faceX = nx * sweep + bx * depth;
+    const faceY = ny * sweep + by * depth;
+    const faceZ = nz * sweep + bz * depth;
+    const cursor = index * 3;
+    points[cursor] = .107 * (2 + c3) * c2 + faceX * radius;
+    points[cursor + 1] = (.107 * (2 + c3) * s2 + faceY * radius) * .91;
+    points[cursor + 2] = .13 * s3 + faceZ * radius;
+    light[index] = Math.round(255 * clamp(.37 + faceX * -.23 + faceY * -.26 + faceZ * .27 + points[cursor + 2] * .56));
+  }
+}
+
+function fillCandles(points, light, count, random) {
+  const closes = [-.04,.015,-.008,.066,.112,.075,.155,.202,.146,.118,.172,.225,.19,.252,.218,.284];
+  for (let index = 0; index < count; index += 1) {
+    const cursor = index * 3;
+    const lane = index % closes.length;
+    const x = -.37 + lane / (closes.length - 1) * .74;
+    const close = closes[lane];
+    const open = lane ? closes[lane - 1] : -.09;
+    const low = Math.min(open, close);
+    const high = Math.max(open, close);
+    const height = Math.max(.043, high - low);
+    const wick = index % 9 === 0;
+    if (wick) {
+      points[cursor] = x + (random() - .5) * .003;
+      points[cursor + 1] = low - .03 + random() * (height + .075);
+      points[cursor + 2] = (random() - .5) * .006;
+      light[index] = 218;
+      continue;
+    }
+    const face = index % 6;
+    const across = random() - .5;
+    const depth = random() - .5;
+    points[cursor] = x + (face === 2 ? -.018 : face === 3 ? .018 : across * .036);
+    points[cursor + 1] = low + (face === 4 ? height : face === 5 ? 0 : random() * height);
+    points[cursor + 2] = face === 0 ? .066 : face === 1 ? -.066 : depth * .132;
+    light[index] = [237,78,130,183,252,105][face];
+  }
+}
+
+function fillPortal(points, light, count, random) {
+  const leavesEnd = Math.floor(count * .79);
+  const rimEnd = Math.floor(count * .95);
+  for (let index = 0; index < count; index += 1) {
+    const cursor = index * 3;
+    if (index < leavesEnd) {
+      const leaf = index % 7;
+      const u = random();
+      const v = random();
+      const angle = leaf * TAU / 7 + .055 + u * .69 + .11 * v;
+      const radius = .12 + (.19 + .022 * Math.sin(u * Math.PI)) * v;
+      const back = index % 7 === 0;
+      const crown = Math.sin(u * Math.PI) * Math.sin(v * Math.PI);
+      points[cursor] = Math.cos(angle) * radius;
+      points[cursor + 1] = Math.sin(angle) * radius * .91;
+      points[cursor + 2] = -.09 + .17 * crown + .07 * (v - .5) + leaf * .009 + (back ? -.12 : 0);
+      light[index] = Math.round(255 * clamp((back ? .16 : .32) + .4 * crown + .2 * (1 - u) - .13 * Math.sin(angle) + (leaf % 2 ? -.09 : .055)));
+    } else if (index < rimEnd) {
+      const angle = TAU * fract(index * .61803398875);
+      const cross = TAU * fract(index * .75487766625);
+      const surface = Math.cos(cross);
+      points[cursor] = (.327 + .033 * surface) * Math.cos(angle);
+      points[cursor + 1] = (.315 + .031 * surface) * Math.sin(angle);
+      points[cursor + 2] = -.055 + .037 * Math.sin(cross);
+      light[index] = Math.round(255 * clamp(.43 + .3 * Math.sin(cross) - .22 * Math.sin(angle)));
+    } else {
+      // A suspended cut seed gives the aperture a near and far plane.
+      const theta = TAU * random();
+      const vertical = random() * 2 - 1;
+      const r = Math.sqrt(1 - vertical * vertical);
+      points[cursor] = Math.cos(theta) * r * .062;
+      points[cursor + 1] = vertical * .095;
+      points[cursor + 2] = .12 + Math.sin(theta) * r * .055;
+      light[index] = Math.round(255 * clamp(.48 + vertical * -.2 + Math.sin(theta) * .22));
+    }
+  }
+}
 
 export class DenomMatter {
   constructor(canvas, { reduced = false } = {}) {
@@ -268,231 +379,78 @@ export class DenomMatter {
 
   makeIndexCore() {
     const output = this.blank();
-    const glyphEnd = Math.floor(this.count * .7);
-    const orbitEnd = Math.floor(this.count * .94);
-    this.writeText(output, 0, glyphEnd, '1', { width: .125, size: 470, weight: 800 });
-    for (let index = 0; index < glyphEnd; index += 1) {
-      output[index * 3 + 2] += (this.seed[index] - .5) * .06;
-    }
-    for (let index = glyphEnd; index < orbitEnd; index += 1) {
-      const cursor = index * 3;
-      const lane = index % 3;
-      const angle = this.angle[index];
-      const rx = [.32, .275, .23][lane];
-      const ry = [.34, .315, .29][lane];
-      output[cursor] = Math.cos(angle) * rx + (this.seed[index] - .5) * .009;
-      output[cursor + 1] = Math.sin(angle) * ry + (this.seed[index] - .5) * .009;
-      output[cursor + 2] = [-.095, .045, .115][lane] + Math.sin(angle * 2) * .035;
-    }
-    for (let index = orbitEnd; index < this.count; index += 1) {
-      const cursor = index * 3;
-      const lane = index % 4;
-      const progress = (index - orbitEnd) / (this.count - orbitEnd);
-      output[cursor] = [-.32, .32, -.27, .27][lane] + (this.seed[index] - .5) * .009;
-      output[cursor + 1] = -.32 + progress * .64;
-      output[cursor + 2] = [-.09, -.09, .06, .06][lane];
-    }
+    const light = new Uint8Array(this.count);
+    fillKnot(output, light, this.count, () => this.random());
+    this.mainLight[1] = light;
     return output;
   }
 
   makeCandleField() {
     const output = this.blank();
-    const closes = [-.04,.015,-.008,.066,.112,.075,.155,.202,.146,.118,.172,.225,.19,.252,.218,.284];
-    for (let index = 0; index < this.count; index += 1) {
-      const cursor = index * 3;
-      const lane = index % closes.length;
-      const x = -0.37 + lane / (closes.length - 1) * 0.74;
-      const close = closes[lane];
-      const open = lane ? closes[lane - 1] : -.09;
-      const bodyLow = Math.min(open, close);
-      const bodyHigh = Math.max(open, close);
-      const bodyHeight = Math.max(.035, bodyHigh - bodyLow);
-      const wickLow = bodyLow - .032 - (lane % 3) * .008;
-      const wickHigh = bodyHigh + .04 + (lane % 4) * .006;
-      const wick = this.seed[index] < .24;
-      output[cursor] = x + (this.random() - 0.5) * (wick ? .004 : .025);
-      output[cursor + 1] = wick ? wickLow + this.random() * (wickHigh - wickLow) : bodyLow + this.random() * bodyHeight;
-      output[cursor + 2] = (this.random() - 0.5) * (wick ? .018 : .065);
-    }
+    const light = new Uint8Array(this.count);
+    fillCandles(output, light, this.count, () => this.random());
+    this.mainLight[2] = light;
     return output;
   }
 
   makeMarketCore() {
     const output = this.blank();
-    const torusEnd = Math.floor(this.count * 0.48);
-    const orbitEnd = Math.floor(this.count * 0.84);
-    const helixEnd = Math.floor(this.count * 0.96);
-
-    // A hollow market core: a real torus volume rather than a flat logo mask.
-    for (let index = 0; index < torusEnd; index += 1) {
-      const cursor = index * 3;
-      const major = this.angle[index];
-      const minor = (index * 2.399963229728653 + this.seed[index] * 0.8) % TAU;
-      const majorRadius = 0.235;
-      const tubeRadius = 0.062 + (this.seed[index] - 0.5) * 0.012;
-      output[cursor] = (majorRadius + Math.cos(minor) * tubeRadius) * Math.cos(major);
-      output[cursor + 1] = (majorRadius + Math.cos(minor) * tubeRadius) * Math.sin(major) * 0.83;
-      output[cursor + 2] = Math.sin(minor) * tubeRadius * 1.3;
-    }
-
-    // Three intersecting orbits establish depth from every viewing angle.
-    for (let index = torusEnd; index < orbitEnd; index += 1) {
-      const cursor = index * 3;
-      const orbit = index % 3;
-      const angle = this.angle[index];
-      const radius = 0.34 + (this.seed[index] - 0.5) * 0.018;
-      const baseX = Math.cos(angle) * radius;
-      const baseY = Math.sin(angle) * radius * 0.42;
-      const tilts = [-0.74, 0.08, 0.72];
-      const tilt = tilts[orbit];
-      output[cursor] = baseX * Math.cos(tilt) - baseY * Math.sin(tilt);
-      output[cursor + 1] = baseX * Math.sin(tilt) + baseY * Math.cos(tilt);
-      output[cursor + 2] = Math.sin(angle) * radius * (0.32 + orbit * 0.08);
-    }
-
-    // A double helix through the aperture reads as energy moving through it.
-    for (let index = orbitEnd; index < helixEnd; index += 1) {
-      const cursor = index * 3;
-      const progress = (index - orbitEnd) / Math.max(1, helixEnd - orbitEnd - 1);
-      const branch = index % 2 ? Math.PI : 0;
-      const angle = progress * TAU * 2.6 + branch;
-      output[cursor] = Math.cos(angle) * 0.055;
-      output[cursor + 1] = -0.285 + progress * 0.57;
-      output[cursor + 2] = Math.sin(angle) * 0.085;
-    }
-
-    // Four denser nodes make the gyroscope feel engineered, not ornamental.
-    const nodes = [[-0.34, 0, 0], [0.34, 0, 0], [0, -0.285, 0], [0, 0.285, 0]];
-    for (let index = helixEnd; index < this.count; index += 1) {
-      const cursor = index * 3;
-      const node = nodes[index % nodes.length];
-      const radius = Math.cbrt(this.seed[index]) * 0.035;
-      const polar = Math.acos(1 - 2 * this.random());
-      const azimuth = this.angle[index];
-      output[cursor] = node[0] + Math.sin(polar) * Math.cos(azimuth) * radius;
-      output[cursor + 1] = node[1] + Math.cos(polar) * radius;
-      output[cursor + 2] = node[2] + Math.sin(polar) * Math.sin(azimuth) * radius;
-    }
+    const light = new Uint8Array(this.count);
+    fillPortal(output, light, this.count, () => this.random());
+    this.mainLight[3] = light;
     return output;
   }
 
   buildDetailShapes() {
-    const count = this.detailCount;
-    const indexCore = new Float32Array(count * 3);
-    const candles = new Float32Array(count * 3);
-    const marketCore = new Float32Array(count * 3);
     let state = 0x9e3779b9;
     const random = () => {
       state = (1664525 * state + 1013904223) >>> 0;
       return state / 4294967296;
     };
-    const glyphEnd = Math.floor(count * .7);
-    const ringEnd = Math.floor(count * .94);
-    const glyph = this.textPoints('1', 470, 800);
-    const glyphStride = glyph.points.length / glyphEnd;
-    const torusEnd = Math.floor(count * .48);
-    const orbitEnd = Math.floor(count * .84);
-    const helixEnd = Math.floor(count * .96);
-    const closes = [-.04,.015,-.008,.066,.112,.075,.155,.202,.146,.118,.172,.225,.19,.252,.218,.284];
-    const nodes = [[-.34,0,0],[.34,0,0],[0,-.285,0],[0,.285,0]];
-
-    for (let index = 0; index < count; index += 1) {
-      const cursor = index * 3;
-      const seed = random();
-      const angle = random() * TAU;
-
-      if (index < glyphEnd) {
-        const sample = Math.min(glyph.points.length - 1, Math.floor((index + random()) * glyphStride));
-        const point = glyph.points[sample];
-        indexCore[cursor] = (point[0] - glyph.centerX) / glyph.halfWidth * .125;
-        indexCore[cursor + 1] = (point[1] - glyph.centerY) / glyph.halfWidth * .125;
-        indexCore[cursor + 2] = (seed - .5) * .13;
-      } else if (index < ringEnd) {
-        const lane = index % 3;
-        indexCore[cursor] = Math.cos(angle) * [.32,.275,.23][lane] + (seed - .5) * .009;
-        indexCore[cursor + 1] = Math.sin(angle) * [.34,.315,.29][lane] + (seed - .5) * .009;
-        indexCore[cursor + 2] = [-.095,.045,.115][lane] + Math.sin(angle * 2) * .035;
-      } else {
-        const lane = index % 4;
-        const progress = (index - ringEnd) / (count - ringEnd);
-        indexCore[cursor] = [-.32,.32,-.27,.27][lane] + (seed - .5) * .009;
-        indexCore[cursor + 1] = -.32 + progress * .64;
-        indexCore[cursor + 2] = [-.09,-.09,.06,.06][lane];
-      }
-
-      const lane = index % closes.length;
-      const close = closes[lane];
-      const open = lane ? closes[lane - 1] : -.09;
-      const low = Math.min(open, close);
-      const high = Math.max(open, close);
-      const wick = seed < .21;
-      const wickLow = low - .032 - (lane % 3) * .008;
-      const wickHigh = high + .04 + (lane % 4) * .006;
-      candles[cursor] = -.37 + lane / (closes.length - 1) * .74 + (random() - .5) * (wick ? .003 : .025);
-      candles[cursor + 1] = wick ? wickLow + random() * (wickHigh - wickLow) : low + random() * Math.max(.035, high - low);
-      candles[cursor + 2] = (random() - .5) * (wick ? .018 : .065);
-
-      if (index < torusEnd) {
-        const minor = (index * 2.399963229728653 + seed * .8) % TAU;
-        const tube = .062 + (seed - .5) * .012;
-        marketCore[cursor] = (.235 + Math.cos(minor) * tube) * Math.cos(angle);
-        marketCore[cursor + 1] = (.235 + Math.cos(minor) * tube) * Math.sin(angle) * .83;
-        marketCore[cursor + 2] = Math.sin(minor) * tube * 1.3;
-      } else if (index < orbitEnd) {
-        const orbit = index % 3;
-        const radius = .34 + (seed - .5) * .018;
-        const x = Math.cos(angle) * radius;
-        const y = Math.sin(angle) * radius * .42;
-        const tilt = [-.74,.08,.72][orbit];
-        marketCore[cursor] = x * Math.cos(tilt) - y * Math.sin(tilt);
-        marketCore[cursor + 1] = x * Math.sin(tilt) + y * Math.cos(tilt);
-        marketCore[cursor + 2] = Math.sin(angle) * radius * (.32 + orbit * .08);
-      } else if (index < helixEnd) {
-        const progress = (index - orbitEnd) / Math.max(1, helixEnd - orbitEnd - 1);
-        const phase = progress * TAU * 2.6 + (index % 2 ? Math.PI : 0);
-        marketCore[cursor] = Math.cos(phase) * .055;
-        marketCore[cursor + 1] = -.285 + progress * .57;
-        marketCore[cursor + 2] = Math.sin(phase) * .085;
-      } else {
-        const node = nodes[index % nodes.length];
-        const radius = Math.cbrt(seed) * .035;
-        const polar = Math.acos(1 - 2 * random());
-        marketCore[cursor] = node[0] + Math.sin(polar) * Math.cos(angle) * radius;
-        marketCore[cursor + 1] = node[1] + Math.cos(polar) * radius;
-        marketCore[cursor + 2] = node[2] + Math.sin(polar) * Math.sin(angle) * radius;
-      }
-    }
-    this.detailShapes = [null, indexCore, candles, marketCore];
+    const knot = new Float32Array(this.detailCount * 3);
+    const candles = new Float32Array(this.detailCount * 3);
+    const portal = new Float32Array(this.detailCount * 3);
+    const knotLight = new Uint8Array(this.detailCount);
+    const candleLight = new Uint8Array(this.detailCount);
+    const portalLight = new Uint8Array(this.detailCount);
+    fillKnot(knot, knotLight, this.detailCount, random);
+    fillCandles(candles, candleLight, this.detailCount, random);
+    fillPortal(portal, portalLight, this.detailCount, random);
+    this.detailShapes = [null, knot, candles, portal];
+    this.detailLight = [null, knotLight, candleLight, portalLight];
   }
 
   buildShapes() {
+    this.mainLight = [null, null, null, null];
     this.shapes = [this.makeHero(), this.makeIndexCore(), this.makeCandleField(), this.makeMarketCore()];
     this.buildDetailShapes();
     this.buildHeroDust();
   }
 
   frameFor(scene) {
-    const desktop = [[0.5, 0.45, 0.88], [0.63, 0.54, 0.78], [0.68, 0.54, 0.72], [0.5, 0.54, 0.78]];
-    const mobile = [[0.5, 0.46, 0.92], [0.52, 0.58, 0.73], [0.5, 0.66, 0.75], [0.5, 0.57, 0.73]];
+    const desktop = [[0.5, 0.45, 0.88], [0.67, 0.48, 0.77], [0.68, 0.54, 0.72], [0.5, 0.53, 0.78]];
+    const mobile = [[0.5, 0.46, 0.92], [0.52, 0.55, 0.84], [0.5, 0.66, 0.75], [0.5, 0.57, 0.88]];
     const frame = (this.mobile ? mobile : desktop)[scene];
-    const unit = Math.min(this.width * frame[2], this.height * (scene === 0 ? 1.58 : 1.18));
+    const unit = Math.min(this.width * frame[2], this.height * (scene === 0 ? 1.58 : scene === 3 ? .88 : 1.18));
     return { x: this.width * frame[0], y: this.height * frame[1], unit };
   }
 
   rotationFor(scene, time) {
     let y = 0;
     let x = 0;
+    let z = 0;
     if (scene === 1) {
-      y = Math.sin(time * .00013) * .18;
-      x = -.085 + Math.sin(time * .000095) * .045;
+      y = Math.sin(time * .00012) * .38;
+      x = -.12 + Math.sin(time * .000085) * .09;
     } else if (scene === 2) {
       y = Math.sin(time * 0.00008) * 0.3;
       x = -0.24 + Math.sin(time * 0.000055) * 0.055;
     } else if (scene === 3) {
       y = Math.sin(time * .00009) * .32;
       x = -0.18 + Math.sin(time * 0.000064) * 0.09;
+      z = time * .000013;
     }
-    return { cy: Math.cos(y), sy: Math.sin(y), cx: Math.cos(x), sx: Math.sin(x) };
+    return { cy: Math.cos(y), sy: Math.sin(y), cx: Math.cos(x), sx: Math.sin(x), cz: Math.cos(z), sz: Math.sin(z) };
   }
 
   project(shape, cursor, frame, rotation, result) {
@@ -505,6 +463,9 @@ export class DenomMatter {
     const rotatedY = y * rotation.cx - z * rotation.sx;
     z = y * rotation.sx + z * rotation.cx;
     y = rotatedY;
+    const spunX = x * rotation.cz - y * rotation.sz;
+    y = x * rotation.sz + y * rotation.cz;
+    x = spunX;
     const perspective = 1 / (1 - z * 0.34);
     result[0] = frame.x + x * frame.unit * perspective;
     result[1] = frame.y + y * frame.unit * perspective;
@@ -617,47 +578,6 @@ export class DenomMatter {
     context.globalAlpha = 1;
   }
 
-  drawUnitChamber(time, alpha) {
-    if (alpha < .005) return;
-    const context = this.context;
-    const frame = this.frameFor(1);
-    const breathe = Math.sin(time * .00033) * .008;
-    context.save();
-    context.translate(frame.x, frame.y);
-    context.scale(frame.unit, frame.unit);
-    context.lineWidth = 1 / frame.unit;
-    context.strokeStyle = `rgba(142, 216, 246, ${alpha * .17})`;
-    // The etched enclosure turns the unit mark into a physical, measured
-    // object. It is deliberately sparse so the individual grains stay clear.
-    for (let lane = -2; lane <= 2; lane += 1) {
-      context.beginPath();
-      context.ellipse(0, 0, .31 - Math.abs(lane) * .037 + breathe, .34, lane * .105, 0, TAU);
-      context.stroke();
-    }
-    for (let lane = -2; lane <= 2; lane += 1) {
-      const y = lane * .135;
-      const width = Math.sqrt(1 - (y / .37) ** 2) * .315;
-      context.beginPath();
-      context.ellipse(0, y, width, .025 + Math.abs(lane) * .009, -.025, 0, TAU);
-      context.stroke();
-    }
-    context.strokeStyle = `rgba(166, 231, 254, ${alpha * .29})`;
-    for (const edge of [-1, 1]) {
-      context.beginPath();
-      context.moveTo(edge * .355, -.31);
-      context.lineTo(edge * .355, .31);
-      context.stroke();
-      for (let tick = -5; tick <= 5; tick += 1) {
-        const y = tick * .059;
-        context.beginPath();
-        context.moveTo(edge * .355, y);
-        context.lineTo(edge * (.361 + (tick % 5 === 0 ? .012 : 0)), y);
-        context.stroke();
-      }
-    }
-    context.restore();
-  }
-
   drawTerminalFragments(time, alpha) {
     if (alpha <= 0.005) return;
     const context = this.context;
@@ -707,8 +627,6 @@ export class DenomMatter {
     }
     this.drawAura({ x: mix(fromFrame.x, toFrame.x, transition), y: mix(fromFrame.y, toFrame.y, transition) }, 1 - flight * 0.65, scene === 0 ? 0.48 : 0.39);
     if (scene === 0) this.drawHeroStars(time, this.local);
-    if (scene === 0) this.drawUnitChamber(time, softer((transition - .34) / .66));
-    if (scene === 1) this.drawUnitChamber(time, 1 - smooth(transition / .84));
     this.drawAtmosphere(time, scene, this.local, flight);
     this.drawTerminalFragments(time, scene === 2 ? 1 - transition : 0);
     context.globalCompositeOperation = 'screen';
@@ -755,6 +673,8 @@ export class DenomMatter {
     }
 
     const objectMix = scene === 0 ? softer((transition - .38) / .62) : 1;
+    const fromLight = this.mainLight[scene];
+    const toLight = this.mainLight[next];
     for (let index = 0; index < this.count; index += 1) {
       const cursor = index * 3;
       const seed = this.seed[index];
@@ -768,6 +688,8 @@ export class DenomMatter {
       if (rawTransition > 0) this.project(to, cursor, toFrame, toRotation, b);
       const visualDepth = mix(a[2], b[2], transition);
       const depthLight = clamp((visualDepth + 0.46) / 0.92);
+      const materialLight = mix(fromLight ? fromLight[index] / 255 : depthLight,
+        toLight ? toLight[index] / 255 : depthLight, transition);
       const arc = (0.12 + seed * 0.28) * Math.min(this.width, this.height) * flight;
       const driftX = cosine * arc + (scene % 2 ? -1 : 1) * arc * 0.16;
       const driftY = sine * arc * 0.6 - arc * 0.13;
@@ -827,7 +749,7 @@ export class DenomMatter {
       const twinkle = flight > .05 && index % 17 === 0 ? .8 + .2 * Math.sin(time * .005 + angle * 4) : scene === 0 && rawTransition === 0 && index % 13 === 0 ? .9 + .1 * Math.sin(time * .0012 + angle * 4) : 1;
       const brightFleck = index % 31 === 0;
       const heroAlpha = (0.59 + seed * 0.1 + depthLight * 0.09) * (scene === 0 && rawTransition === 0 ? particleIntro : 1) * twinkle;
-      const grainAlpha = 0.12 + seed * 0.05 + depthLight * 0.09 + (brightFleck ? 0.23 : 0);
+      const grainAlpha = (0.13 + seed * 0.05 + depthLight * 0.09 + (brightFleck ? 0.2 : 0)) * mix(.55, 1.28, materialLight);
       const alpha = mix(heroAlpha, grainAlpha, objectMix);
       const sprite = this.sprites[this.tint[index] * 2 + this.variant[index]];
       const spriteSize = particleRadius * mix(4.7, brightFleck ? 4.2 : 1.9, objectMix);
@@ -838,17 +760,15 @@ export class DenomMatter {
 
     if (objectMix > 0) {
       context.globalCompositeOperation = 'source-over';
-      const iceGrains = new Path2D();
-      const cyanGrains = new Path2D();
-      const skyGrains = new Path2D();
-      const blueGrains = new Path2D();
-      const grainPaths = [iceGrains, cyanGrains, skyGrains, blueGrains];
+      const grainPaths = Array.from({ length: 5 }, () => new Path2D());
       const detailScene = Math.max(1, scene);
       const detailNext = Math.max(1, next);
       const detailFrom = this.detailShapes[detailScene];
       const detailTo = this.detailShapes[detailNext];
+      const lightFrom = this.detailLight[detailScene];
+      const lightTo = this.detailLight[detailNext];
       const detailFade = scene === 0 ? softer((transition - .28) / .6) : 1;
-      const size = this.mobile ? 1.28 : 1.4;
+      const size = this.mobile ? 1.52 : 1.76;
       const a = this.detailPointA;
       const b = this.detailPointB;
       for (let index = 0; index < this.detailCount; index += 1) {
@@ -859,14 +779,16 @@ export class DenomMatter {
         const drift = flight * (19 + (index % 11) * 1.4);
         const x = mix(a[0], target[0], transition) + this.detailCos[index] * drift;
         const y = mix(a[1], target[1], transition) + this.detailSin[index] * drift * .72;
-        const dot = index % 37 === 0 ? size * 1.25 : size;
-        const tint = index % 13;
-        grainPaths[tint < 2 ? 0 : tint < 6 ? 1 : tint < 10 ? 2 : 3].rect(x, y, dot, dot);
+        const depth = mix(a[2], target[2], transition);
+        const shade = clamp(mix(lightFrom[index], lightTo[index], transition) / 255 * .85 + clamp((depth + .24) / .48) * .15);
+        const dot = size * (.7 + shade * .56) * (index % 41 === 0 ? 1.18 : 1);
+        const tint = shade < .28 ? 0 : shade < .42 ? 1 : shade < .56 ? 2 : shade < .68 ? 3 : 4;
+        grainPaths[tint].rect(x, y, dot, dot);
       }
       const opacity = objectMix * detailFade * (1 - flight * .1);
-      const palette = ['#f7fdff', '#a7ecff', '#8eeaff', '#588cff'];
-      const alphas = [.8, .82, .8, .76];
-      for (let tint = 0; tint < 4; tint += 1) {
+      const palette = ['#29486b', '#4e80bf', '#76b9e6', '#bdeeff', '#f7fdff'];
+      const alphas = [.56, .76, .89, .94, .98];
+      for (let tint = 0; tint < palette.length; tint += 1) {
         context.globalAlpha = alphas[tint] * opacity;
         context.fillStyle = palette[tint];
         context.fill(grainPaths[tint]);
