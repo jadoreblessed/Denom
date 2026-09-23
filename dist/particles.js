@@ -36,11 +36,16 @@ export class DenomMatter {
     this.radius = new Float32Array(this.count);
     this.tint = new Uint8Array(this.count);
     this.variant = new Uint8Array(this.count);
-    this.grainCount = 12;
-    this.satelliteX = new Float32Array(this.count * this.grainCount);
-    this.satelliteY = new Float32Array(this.count * this.grainCount);
-    this.screenX = new Float32Array(this.count);
-    this.screenY = new Float32Array(this.count);
+    this.detailCount = innerWidth < 680 ? 6000 : innerWidth < 1100 ? 8000 : 11000;
+    this.detailPointA = new Float32Array(3);
+    this.detailPointB = new Float32Array(3);
+    this.detailCos = new Float32Array(this.detailCount);
+    this.detailSin = new Float32Array(this.detailCount);
+    for (let index = 0; index < this.detailCount; index += 1) {
+      const angle = index * 2.399963229728653;
+      this.detailCos[index] = Math.cos(angle);
+      this.detailSin[index] = Math.sin(angle);
+    }
     this.pointer = { x: -9999, y: -9999, active: false };
     this.pointA = new Float32Array(3);
     this.pointB = new Float32Array(3);
@@ -56,15 +61,11 @@ export class DenomMatter {
       this.radius[index] = 0.56 + this.random() * 0.72;
       this.tint[index] = Math.floor(this.random() * 5);
       this.variant[index] = this.random() > 0.82 ? 1 : 0;
-      // Keep the hero's seeded layout identical while drawing fewer, sharper
-      // satellite points for the objects that follow it.
+      // Preserve the hero's seeded layout when generating the separate detail
+      // geometry below, which uses its own random sequence.
       for (let spark = 0; spark < 25; spark += 1) {
-        const angle = this.random() * TAU;
-        const distance = Math.sqrt(this.random()) * 6.8;
-        if (spark < this.grainCount) {
-          this.satelliteX[index * this.grainCount + spark] = Math.cos(angle) * distance;
-          this.satelliteY[index * this.grainCount + spark] = Math.sin(angle) * distance;
-        }
+        this.random();
+        this.random();
       }
     }
 
@@ -400,8 +401,110 @@ export class DenomMatter {
     return output;
   }
 
+  buildDetailShapes() {
+    const count = this.detailCount;
+    const indexCore = new Float32Array(count * 3);
+    const candles = new Float32Array(count * 3);
+    const marketCore = new Float32Array(count * 3);
+    let state = 0x9e3779b9;
+    const random = () => {
+      state = (1664525 * state + 1013904223) >>> 0;
+      return state / 4294967296;
+    };
+    const sphereEnd = Math.floor(count * .54);
+    const ringEnd = Math.floor(count * .86);
+    const spineEnd = Math.floor(count * .94);
+    const torusEnd = Math.floor(count * .48);
+    const orbitEnd = Math.floor(count * .84);
+    const helixEnd = Math.floor(count * .96);
+    const closes = [-.04,.015,-.008,.066,.112,.075,.155,.202,.146,.118,.172,.225,.19,.252,.218,.284];
+    const satellites = [[-.46,-.18,.055],[.43,-.23,.065],[.47,.22,.046],[-.36,.29,.052]];
+    const nodes = [[-.34,0,0],[.34,0,0],[0,-.285,0],[0,.285,0]];
+
+    for (let index = 0; index < count; index += 1) {
+      const cursor = index * 3;
+      const seed = random();
+      const angle = random() * TAU;
+
+      if (index < sphereEnd) {
+        const z = 1 - 2 * (index + .5) / sphereEnd;
+        const circle = Math.sqrt(Math.max(0, 1 - z * z));
+        const phase = index * Math.PI * (3 - Math.sqrt(5));
+        const radius = (index % 5 === 0 ? .148 : .187) + (seed - .5) * .012;
+        indexCore[cursor] = Math.cos(phase) * circle * radius;
+        indexCore[cursor + 1] = z * radius;
+        indexCore[cursor + 2] = Math.sin(phase) * circle * radius;
+      } else if (index < ringEnd) {
+        const lane = index % 4;
+        const radius = .25 + lane * .057 + (seed - .5) * .009;
+        const x = Math.cos(angle) * radius;
+        const y = Math.sin(angle) * radius * (.28 + lane * .045);
+        const tilt = [-.58,.24,.68,-.12][lane];
+        indexCore[cursor] = x * Math.cos(tilt) - y * Math.sin(tilt);
+        indexCore[cursor + 1] = x * Math.sin(tilt) + y * Math.cos(tilt);
+        indexCore[cursor + 2] = Math.sin(angle) * radius * .62 + (random() - .5) * .018;
+      } else if (index < spineEnd) {
+        const progress = (index - ringEnd) / Math.max(1, spineEnd - ringEnd - 1);
+        const phase = progress * TAU * 3.2;
+        indexCore[cursor] = Math.cos(phase) * (.075 + progress * .035);
+        indexCore[cursor + 1] = -.34 + progress * .68;
+        indexCore[cursor + 2] = Math.sin(phase) * .12;
+      } else {
+        const satellite = satellites[index % satellites.length];
+        const radius = Math.sqrt(seed) * satellite[2];
+        indexCore[cursor] = satellite[0] + Math.cos(angle) * radius;
+        indexCore[cursor + 1] = satellite[1] + Math.sin(angle) * radius;
+        indexCore[cursor + 2] = (random() - .5) * .11;
+      }
+
+      const lane = index % closes.length;
+      const close = closes[lane];
+      const open = lane ? closes[lane - 1] : -.09;
+      const low = Math.min(open, close);
+      const high = Math.max(open, close);
+      const wick = seed < .21;
+      const wickLow = low - .032 - (lane % 3) * .008;
+      const wickHigh = high + .04 + (lane % 4) * .006;
+      candles[cursor] = -.37 + lane / (closes.length - 1) * .74 + (random() - .5) * (wick ? .003 : .025);
+      candles[cursor + 1] = wick ? wickLow + random() * (wickHigh - wickLow) : low + random() * Math.max(.035, high - low);
+      candles[cursor + 2] = (random() - .5) * (wick ? .018 : .065);
+
+      if (index < torusEnd) {
+        const minor = (index * 2.399963229728653 + seed * .8) % TAU;
+        const tube = .062 + (seed - .5) * .012;
+        marketCore[cursor] = (.235 + Math.cos(minor) * tube) * Math.cos(angle);
+        marketCore[cursor + 1] = (.235 + Math.cos(minor) * tube) * Math.sin(angle) * .83;
+        marketCore[cursor + 2] = Math.sin(minor) * tube * 1.3;
+      } else if (index < orbitEnd) {
+        const orbit = index % 3;
+        const radius = .34 + (seed - .5) * .018;
+        const x = Math.cos(angle) * radius;
+        const y = Math.sin(angle) * radius * .42;
+        const tilt = [-.74,.08,.72][orbit];
+        marketCore[cursor] = x * Math.cos(tilt) - y * Math.sin(tilt);
+        marketCore[cursor + 1] = x * Math.sin(tilt) + y * Math.cos(tilt);
+        marketCore[cursor + 2] = Math.sin(angle) * radius * (.32 + orbit * .08);
+      } else if (index < helixEnd) {
+        const progress = (index - orbitEnd) / Math.max(1, helixEnd - orbitEnd - 1);
+        const phase = progress * TAU * 2.6 + (index % 2 ? Math.PI : 0);
+        marketCore[cursor] = Math.cos(phase) * .055;
+        marketCore[cursor + 1] = -.285 + progress * .57;
+        marketCore[cursor + 2] = Math.sin(phase) * .085;
+      } else {
+        const node = nodes[index % nodes.length];
+        const radius = Math.cbrt(seed) * .035;
+        const polar = Math.acos(1 - 2 * random());
+        marketCore[cursor] = node[0] + Math.sin(polar) * Math.cos(angle) * radius;
+        marketCore[cursor + 1] = node[1] + Math.cos(polar) * radius;
+        marketCore[cursor + 2] = node[2] + Math.sin(polar) * Math.sin(angle) * radius;
+      }
+    }
+    this.detailShapes = [null, indexCore, candles, marketCore];
+  }
+
   buildShapes() {
     this.shapes = [this.makeHero(), this.makeIndexCore(), this.makeCandleField(), this.makeMarketCore()];
+    this.buildDetailShapes();
     this.buildHeroDust();
   }
 
@@ -725,31 +828,34 @@ export class DenomMatter {
       context.globalAlpha = alpha;
 
       context.drawImage(sprite, x - spriteSize / 2, y - spriteSize / 2, spriteSize, spriteSize);
-      if (objectMix > 0) {
-        this.screenX[index] = x;
-        this.screenY[index] = y;
-      }
     }
 
     if (objectMix > 0) {
       context.globalCompositeOperation = 'source-over';
       const accentGrains = new Path2D();
       context.beginPath();
-      const spread = scene === 2 ? .72 : 1;
-      const dotSize = this.mobile ? 1.25 : 1.35;
-      for (let index = 0; index < this.count; index += 1) {
-        const x = this.screenX[index];
-        const y = this.screenY[index];
-        const grain = this.tint[index] === 3 ? accentGrains : context;
-        for (let spark = 0; spark < this.grainCount; spark += 1) {
-          const slot = index * this.grainCount + spark;
-          grain.rect(x + this.satelliteX[slot] * spread, y + this.satelliteY[slot] * spread, dotSize, dotSize);
-        }
+      const detailScene = Math.max(1, scene);
+      const detailNext = Math.max(1, next);
+      const detailFrom = this.detailShapes[detailScene];
+      const detailTo = this.detailShapes[detailNext];
+      const detailFade = scene === 0 ? softer((transition - .55) / .45) : 1;
+      const size = this.mobile ? 1.25 : 1.3;
+      const a = this.detailPointA;
+      const b = this.detailPointB;
+      for (let index = 0; index < this.detailCount; index += 1) {
+        const cursor = index * 3;
+        this.project(detailFrom, cursor, fromFrame, fromRotation, a);
+        if (rawTransition > 0) this.project(detailTo, cursor, toFrame, toRotation, b);
+        const target = rawTransition > 0 ? b : a;
+        const x = mix(a[0], target[0], transition) + this.detailCos[index] * flight * 13;
+        const y = mix(a[1], target[1], transition) + this.detailSin[index] * flight * 10;
+        const dot = index % 19 === 0 ? size * 1.35 : size;
+        (index % 5 === 0 ? accentGrains : context).rect(x, y, dot, dot);
       }
-      context.globalAlpha = .94 * objectMix * (1 - flight * .18);
+      context.globalAlpha = .94 * objectMix * detailFade * (1 - flight * .18);
       context.fillStyle = '#439cf8';
       context.fill();
-      context.globalAlpha = .88 * objectMix * (1 - flight * .18);
+      context.globalAlpha = .88 * objectMix * detailFade * (1 - flight * .18);
       context.fillStyle = '#9acfff';
       context.fill(accentGrains);
     }
