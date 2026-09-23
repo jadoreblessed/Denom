@@ -32,6 +32,10 @@ export class DenomMatter {
     this.radius = new Float32Array(this.count);
     this.tint = new Uint8Array(this.count);
     this.variant = new Uint8Array(this.count);
+    this.satelliteX = new Float32Array(this.count * 17);
+    this.satelliteY = new Float32Array(this.count * 17);
+    this.screenX = new Float32Array(this.count);
+    this.screenY = new Float32Array(this.count);
     this.pointer = { x: -9999, y: -9999, active: false };
     this.pointA = new Float32Array(3);
     this.pointB = new Float32Array(3);
@@ -47,6 +51,12 @@ export class DenomMatter {
       this.radius[index] = 0.56 + this.random() * 0.72;
       this.tint[index] = Math.floor(this.random() * 5);
       this.variant[index] = this.random() > 0.82 ? 1 : 0;
+      for (let spark = 0; spark < 17; spark += 1) {
+        const angle = this.angle[index] + spark * 2.399963229728653;
+        const distance = 1.2 + ((index * 0.61803398875 + spark * 0.75487766625) % 1) * 5.5;
+        this.satelliteX[index * 17 + spark] = Math.cos(angle) * distance;
+        this.satelliteY[index * 17 + spark] = Math.sin(angle) * distance;
+      }
     }
 
     this.sprites = this.makeSprites();
@@ -589,10 +599,20 @@ export class DenomMatter {
       const gather = smooth((time - this.birth - 350) / 2800);
       const cohesion = 1 - smooth((transition - 0.02) / 0.74);
       context.globalAlpha = gather * cohesion * 0.88;
+      if (this.pointer.active && rawTransition < .45) {
+        // The fine grain must leave with the large particles under the cursor.
+        // Clip only its local area; the rest of the wordmark stays dense.
+        context.save();
+        context.beginPath();
+        context.rect(0, 0, this.width, this.height);
+        context.arc(this.pointer.x, this.pointer.y, this.mobile ? 56 : 88, 0, TAU, true);
+        context.clip('evenodd');
+      }
       this.heroDust.forEach(glyph => {
         const breath = Math.sin(time * 0.00068 + glyph.index * 1.8) * 0.7;
         context.drawImage(glyph.canvas, glyph.x + breath, glyph.y - breath * 0.5);
       });
+      if (this.pointer.active && rawTransition < .45) context.restore();
       context.globalAlpha = 1;
     }
 
@@ -672,6 +692,26 @@ export class DenomMatter {
       context.globalAlpha = alpha;
 
       context.drawImage(sprite, x - spriteSize / 2, y - spriteSize / 2, spriteSize, spriteSize);
+      if (scene !== 0) {
+        this.screenX[index] = x;
+        this.screenY[index] = y;
+      }
+    }
+
+    if (scene !== 0) {
+      context.globalAlpha = .69 * (1 - flight * .28);
+      context.fillStyle = '#b1eeff';
+      context.beginPath();
+      const spread = scene === 2 ? .62 : 1;
+      for (let index = 0; index < this.count; index += 1) {
+        const x = this.screenX[index];
+        const y = this.screenY[index];
+        for (let spark = 0; spark < 17; spark += 1) {
+          const slot = index * 17 + spark;
+          context.rect(x + this.satelliteX[slot] * spread, y + this.satelliteY[slot] * spread, 1, 1);
+        }
+      }
+      context.fill();
     }
 
     context.globalCompositeOperation = 'source-over';
