@@ -106,7 +106,7 @@ function paintScroll() {
     inner.style.opacity = opacity.toFixed(3);
     inner.style.pointerEvents = opacity > 0.55 ? 'auto' : 'none';
 
-    const enterBase = reduced ? 1 : index === active ? smooth((local + 0.06) / 0.075) : 0;
+    const enterBase = reduced ? 1 : index === active ? smooth((local + 0.06) / 0.15) : 0;
     const leaveBase = reduced || index !== active || active === scenes.length - 1 ? 0 : smooth((local - 0.51) / 0.45);
     const motion = landingMotion[index];
     motion.words.forEach((word, wordIndex) => {

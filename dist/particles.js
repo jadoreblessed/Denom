@@ -35,6 +35,7 @@ export class DenomMatter {
     this.pointer = { x: -9999, y: -9999, active: false };
     this.pointA = new Float32Array(3);
     this.pointB = new Float32Array(3);
+    this.textMaskCache = new Map();
     this.lastScene = -1;
 
     for (let index = 0; index < this.count; index += 1) {
@@ -146,6 +147,8 @@ export class DenomMatter {
   }
 
   textPoints(value, fontSize = 410, fontWeight = 700) {
+    const key = `${value}:${fontSize}:${fontWeight}`;
+    if (this.textMaskCache.has(key)) return this.textMaskCache.get(key);
     const width = 1700;
     const height = 560;
     const source = document.createElement('canvas');
@@ -174,7 +177,9 @@ export class DenomMatter {
       minY = Math.min(minY, point[1]);
       maxY = Math.max(maxY, point[1]);
     });
-    return { points, centerX: (minX + maxX) / 2, centerY: (minY + maxY) / 2, halfWidth: (maxX - minX) / 2 };
+    const mask = { points, centerX: (minX + maxX) / 2, centerY: (minY + maxY) / 2, halfWidth: (maxX - minX) / 2, halfHeight: (maxY - minY) / 2 };
+    this.textMaskCache.set(key, mask);
+    return mask;
   }
 
   writeText(output, start, end, value, { x = 0, y = 0, width = 0.48, size = 410, weight = 700 } = {}) {
@@ -199,10 +204,46 @@ export class DenomMatter {
     // Concentrate the added particles in the smaller 0x mark without thinning DENOM or X.
     const contractEnd = Math.floor(baseCount * 0.92) + this.heroExtra;
     const sideY = this.mobile ? 0.16 : 0.15;
-    this.writeText(output, 0, mainEnd, 'DENOM', { y: -0.035, width: 0.35, size: 420 });
-    this.writeText(output, mainEnd, contractEnd, '0x', { x: -0.42, y: sideY, width: 0.088, size: 370, weight: 600 });
-    this.writeText(output, contractEnd, this.count, 'X', { x: 0.42, y: sideY, width: 0.058, size: 410, weight: 600 });
+    this.heroGlyphs = [
+      { value: 'DENOM', start: 0, end: mainEnd, x: 0, y: -0.035, width: 0.35, size: 420, weight: 700, dust: 45000 },
+      { value: '0x', start: mainEnd, end: contractEnd, x: -0.42, y: sideY, width: 0.088, size: 370, weight: 600, dust: 11000 },
+      { value: 'X', start: contractEnd, end: this.count, x: 0.42, y: sideY, width: 0.058, size: 410, weight: 600, dust: 7500 }
+    ];
+    this.heroGlyphs.forEach(glyph => this.writeText(output, glyph.start, glyph.end, glyph.value, glyph));
     return output;
+  }
+
+  buildHeroDust() {
+    const frame = this.frameFor(0);
+    this.heroDust = this.heroGlyphs.map((glyph, glyphIndex) => {
+      const mask = this.textPoints(glyph.value, glyph.size, glyph.weight);
+      const scale = glyph.width * frame.unit / mask.halfWidth;
+      const width = Math.ceil(mask.halfWidth * scale * 2 + 6);
+      const height = Math.ceil(mask.halfHeight * scale * 2 + 6);
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d');
+      const pixels = context.createImageData(width, height);
+      const points = mask.points;
+      const count = Math.min(points.length, Math.round(glyph.dust * (this.mobile ? .55 : 1)));
+      for (let index = 0; index < count; index += 1) {
+        const point = points[Math.floor(((index * 0.618033988749895) % 1) * points.length)];
+        const driftX = ((index * 0.75487766625) % 1 - 0.5) * 2.4;
+        const driftY = ((index * 0.56984029099) % 1 - 0.5) * 2.4;
+        const x = Math.round(width / 2 + (point[0] - mask.centerX) * scale + driftX);
+        const y = Math.round(height / 2 + (point[1] - mask.centerY) * scale + driftY);
+        if (x < 0 || x >= width || y < 0 || y >= height) continue;
+        const offset = (y * width + x) * 4;
+        const shimmer = (index * 0.75487766625) % 1;
+        pixels.data[offset] = shimmer > .86 ? 244 : 132;
+        pixels.data[offset + 1] = shimmer > .86 ? 250 : 209;
+        pixels.data[offset + 2] = 255;
+        pixels.data[offset + 3] = shimmer > .86 ? 210 : 132;
+      }
+      context.putImageData(pixels, 0, 0);
+      return { canvas, x: frame.x + glyph.x * frame.unit - width / 2, y: frame.y + glyph.y * frame.unit - height / 2, index: glyphIndex };
+    });
   }
 
   makeIndexCore() {
@@ -342,6 +383,7 @@ export class DenomMatter {
 
   buildShapes() {
     this.shapes = [this.makeHero(), this.makeIndexCore(), this.makeCandleField(), this.makeMarketCore()];
+    this.buildHeroDust();
   }
 
   frameFor(scene) {
@@ -356,14 +398,14 @@ export class DenomMatter {
     let y = 0;
     let x = 0;
     if (scene === 1) {
-      y = time * 0.00012;
-      x = -0.12 + Math.sin(time * 0.00017) * 0.035;
+      y = time * 0.000075;
+      x = -0.12 + Math.sin(time * 0.00011) * 0.035;
     } else if (scene === 2) {
-      y = Math.sin(time * 0.00019) * 0.3;
-      x = -0.24 + Math.sin(time * 0.00013) * 0.055;
+      y = Math.sin(time * 0.00012) * 0.3;
+      x = -0.24 + Math.sin(time * 0.000085) * 0.055;
     } else if (scene === 3) {
-      y = time * 0.000085;
-      x = -0.18 + Math.sin(time * 0.00014) * 0.09;
+      y = time * 0.000055;
+      x = -0.18 + Math.sin(time * 0.000095) * 0.09;
     }
     return { cy: Math.cos(y), sy: Math.sin(y), cx: Math.cos(x), sx: Math.sin(x) };
   }
@@ -439,7 +481,7 @@ export class DenomMatter {
     // A continuous, low-cost ash layer survives every shape morph and every scene.
     const context = this.context;
     const progress = scene + local;
-    const motion = time * .026 + progress * 130;
+    const motion = time * .012 + progress * 110;
     const amount = this.mobile ? 104 : 220;
     context.globalCompositeOperation = 'screen';
     for (let index = 0; index < amount; index += 1) {
@@ -470,7 +512,7 @@ export class DenomMatter {
       const u = (index * 0.61803398875 + 0.19) % 1;
       const v = (index * 0.75487766625 + 0.31) % 1;
       const layer = index % 3;
-      const x = (u * (this.width + 28) + elapsed * (0.0035 + layer * 0.0028)) % (this.width + 28) - 14;
+      const x = (u * (this.width + 28) + elapsed * (0.0025 + layer * 0.0018)) % (this.width + 28) - 14;
       const y = v * this.height + Math.sin(elapsed * 0.00022 + index * 3.2) * (1.5 + layer * 1.8);
       const core = Math.abs(x / this.width - 0.5) < 0.34 && Math.abs(y / this.height - 0.43) < 0.22;
       const light = 0.72 + 0.28 * Math.sin(elapsed * (0.0011 + layer * 0.0003) + index * 2.4);
@@ -522,13 +564,12 @@ export class DenomMatter {
     const to = this.shapes[next];
     const fromFrame = this.frameFor(scene);
     const toFrame = this.frameFor(next);
-    const intro = scene === 0 ? smooth((time - this.birth) / 1750) : 1;
-    const rawTransition = next === scene ? 0 : clamp((this.local - 0.49) / 0.49);
+    const rawTransition = next === scene ? 0 : clamp((this.local - 0.4) / 0.6);
     const transition = smooth(rawTransition);
     const flight = Math.sin(transition * Math.PI);
     const fromRotation = this.rotationFor(scene, time);
     const toRotation = rawTransition > 0 ? this.rotationFor(next, time) : fromRotation;
-    const phase = transition * TAU * 2.2;
+    const phase = transition * TAU * 1.25;
     const phaseCos = Math.cos(phase);
     const phaseSin = Math.sin(phase);
 
@@ -543,6 +584,17 @@ export class DenomMatter {
     this.drawAtmosphere(time, scene, this.local, flight);
     this.drawTerminalFragments(time, scene === 2 ? 1 - transition : 0);
     context.globalCompositeOperation = 'screen';
+
+    if (scene === 0) {
+      const gather = smooth((time - this.birth - 350) / 2800);
+      const cohesion = 1 - smooth((transition - 0.02) / 0.74);
+      context.globalAlpha = gather * cohesion * 0.88;
+      this.heroDust.forEach(glyph => {
+        const breath = Math.sin(time * 0.00068 + glyph.index * 1.8) * 0.7;
+        context.drawImage(glyph.canvas, glyph.x + breath, glyph.y - breath * 0.5);
+      });
+      context.globalAlpha = 1;
+    }
 
     for (let index = 0; index < this.count; index += 1) {
       const cursor = index * 3;
@@ -580,14 +632,14 @@ export class DenomMatter {
 
       let particleIntro = 1;
       if (scene === 0 && rawTransition === 0) {
-        particleIntro = smooth(clamp(((time - this.birth) / 1750 - seed * .32) / .68));
+        particleIntro = smooth(clamp(((time - this.birth) / 2600 - seed * .28) / .72));
         const distance = 105 + seed * Math.max(this.width, this.height) * 0.44;
         const spiral = angle + (1 - particleIntro) * (2.1 + depth * .8);
         x = a[0] + (1 - particleIntro) * Math.cos(spiral) * distance;
         y = a[1] + (1 - particleIntro) * Math.sin(spiral) * distance * 0.62;
         // The original hero branch stayed here after assembly, so its idle
         // motion never ran. Let the lettering breathe once it has formed.
-        const idle = smooth((time - this.birth - 1250) / 750) * (index < this.heroMainEnd ? 1 : 0.42);
+        const idle = smooth((time - this.birth - 1900) / 1100) * (index < this.heroMainEnd ? 1 : 0.42);
         x += Math.sin(time * 0.00105 + angle * 1.7 + seed * 6) * (0.85 + depthLight * 1.7) * idle;
         y += Math.sin(time * 0.00083 + angle * 1.3 + seed * 4) * (0.8 + depthLight * 1.4) * idle;
       } else if (rawTransition === 0) {
@@ -613,7 +665,7 @@ export class DenomMatter {
 
       const depthScale = scene === 0 ? 0.94 + depthLight * 0.28 : 0.74 + depthLight * 0.7;
       const particleRadius = this.radius[index] * depthScale * (scene === 0 ? 1.72 : 1.68) * (1 - flight * 0.1) * (1 + proximity * .35);
-      const twinkle = flight > .05 && index % 17 === 0 ? .68 + .32 * Math.sin(time * .011 + angle * 4) : scene === 0 && rawTransition === 0 && index % 13 === 0 ? .86 + .14 * Math.sin(time * .002 + angle * 4) : 1;
+      const twinkle = flight > .05 && index % 17 === 0 ? .8 + .2 * Math.sin(time * .005 + angle * 4) : scene === 0 && rawTransition === 0 && index % 13 === 0 ? .9 + .1 * Math.sin(time * .0012 + angle * 4) : 1;
       const alpha = ((scene === 0 ? 0.82 : 0.78) + seed * 0.12 + depthLight * 0.1) * (scene === 0 && rawTransition === 0 ? particleIntro : 1) * twinkle;
       const sprite = this.sprites[this.tint[index] * 2 + this.variant[index]];
       const spriteSize = particleRadius * 5.9;
