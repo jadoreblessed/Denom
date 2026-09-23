@@ -18,7 +18,9 @@ export class DenomMatter {
     this.suspended = false;
     this.seedValue = 0xdecafbad;
     const cores = window.navigator?.hardwareConcurrency || 4;
-    this.count = innerWidth < 680 ? (cores < 6 ? 850 : 1100) : innerWidth < 1100 ? (cores < 6 ? 1450 : 1850) : (cores < 6 ? 1950 : 2350);
+    const baseCount = innerWidth < 680 ? (cores < 6 ? 850 : 1100) : innerWidth < 1100 ? (cores < 6 ? 1450 : 1850) : (cores < 6 ? 1950 : 2350);
+    this.heroExtra = innerWidth < 680 ? 120 : innerWidth < 1100 ? 180 : 240;
+    this.count = baseCount + this.heroExtra;
     this.frameInterval = innerWidth < 680 ? 29 : 15;
     this.slowFrames = 0;
     this.fastFrames = 0;
@@ -172,8 +174,10 @@ export class DenomMatter {
 
   makeHero() {
     const output = this.blank();
-    const mainEnd = Math.floor(this.count * 0.84);
-    const contractEnd = Math.floor(this.count * 0.92);
+    const baseCount = this.count - this.heroExtra;
+    const mainEnd = Math.floor(baseCount * 0.84);
+    // Concentrate the added particles in the smaller 0x mark without thinning DENOM or X.
+    const contractEnd = Math.floor(baseCount * 0.92) + this.heroExtra;
     const sideY = this.mobile ? 0.16 : 0.15;
     this.writeText(output, 0, mainEnd, 'DENOM', { y: -0.035, width: 0.35, size: 420 });
     this.writeText(output, mainEnd, contractEnd, '0x', { x: -0.42, y: sideY, width: 0.088, size: 370, weight: 600 });
