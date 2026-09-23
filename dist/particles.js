@@ -36,7 +36,7 @@ export class DenomMatter {
     this.radius = new Float32Array(this.count);
     this.tint = new Uint8Array(this.count);
     this.variant = new Uint8Array(this.count);
-    this.grainCount = 25;
+    this.grainCount = 12;
     this.satelliteX = new Float32Array(this.count * this.grainCount);
     this.satelliteY = new Float32Array(this.count * this.grainCount);
     this.screenX = new Float32Array(this.count);
@@ -56,11 +56,15 @@ export class DenomMatter {
       this.radius[index] = 0.56 + this.random() * 0.72;
       this.tint[index] = Math.floor(this.random() * 5);
       this.variant[index] = this.random() > 0.82 ? 1 : 0;
-      for (let spark = 0; spark < this.grainCount; spark += 1) {
+      // Keep the hero's seeded layout identical while drawing fewer, sharper
+      // satellite points for the objects that follow it.
+      for (let spark = 0; spark < 25; spark += 1) {
         const angle = this.random() * TAU;
-        const distance = Math.sqrt(this.random()) * 7.5;
-        this.satelliteX[index * this.grainCount + spark] = Math.cos(angle) * distance;
-        this.satelliteY[index * this.grainCount + spark] = Math.sin(angle) * distance;
+        const distance = Math.sqrt(this.random()) * 6.8;
+        if (spark < this.grainCount) {
+          this.satelliteX[index * this.grainCount + spark] = Math.cos(angle) * distance;
+          this.satelliteY[index * this.grainCount + spark] = Math.sin(angle) * distance;
+        }
       }
     }
 
@@ -714,10 +718,10 @@ export class DenomMatter {
       const twinkle = flight > .05 && index % 17 === 0 ? .8 + .2 * Math.sin(time * .005 + angle * 4) : scene === 0 && rawTransition === 0 && index % 13 === 0 ? .9 + .1 * Math.sin(time * .0012 + angle * 4) : 1;
       const brightFleck = index % 31 === 0;
       const heroAlpha = (0.59 + seed * 0.1 + depthLight * 0.09) * (scene === 0 && rawTransition === 0 ? particleIntro : 1) * twinkle;
-      const grainAlpha = 0.22 + seed * 0.09 + depthLight * 0.12 + (brightFleck ? 0.25 : 0);
+      const grainAlpha = 0.12 + seed * 0.05 + depthLight * 0.09 + (brightFleck ? 0.23 : 0);
       const alpha = mix(heroAlpha, grainAlpha, objectMix);
       const sprite = this.sprites[this.tint[index] * 2 + this.variant[index]];
-      const spriteSize = particleRadius * mix(4.7, brightFleck ? 4.4 : 2.4, objectMix);
+      const spriteSize = particleRadius * mix(4.7, brightFleck ? 4.2 : 1.9, objectMix);
       context.globalAlpha = alpha;
 
       context.drawImage(sprite, x - spriteSize / 2, y - spriteSize / 2, spriteSize, spriteSize);
@@ -731,21 +735,22 @@ export class DenomMatter {
       context.globalCompositeOperation = 'source-over';
       const accentGrains = new Path2D();
       context.beginPath();
-      const spread = scene === 2 ? .42 : 1;
+      const spread = scene === 2 ? .72 : 1;
+      const dotSize = this.mobile ? 1.25 : 1.35;
       for (let index = 0; index < this.count; index += 1) {
         const x = this.screenX[index];
         const y = this.screenY[index];
         const grain = this.tint[index] === 3 ? accentGrains : context;
         for (let spark = 0; spark < this.grainCount; spark += 1) {
           const slot = index * this.grainCount + spark;
-          grain.rect(x + this.satelliteX[slot] * spread, y + this.satelliteY[slot] * spread, 1.1, 1.1);
+          grain.rect(x + this.satelliteX[slot] * spread, y + this.satelliteY[slot] * spread, dotSize, dotSize);
         }
       }
-      context.globalAlpha = .72 * objectMix * (1 - flight * .2);
-      context.fillStyle = '#8eaebc';
+      context.globalAlpha = .94 * objectMix * (1 - flight * .18);
+      context.fillStyle = '#439cf8';
       context.fill();
-      context.globalAlpha = .67 * objectMix * (1 - flight * .2);
-      context.fillStyle = '#58bad1';
+      context.globalAlpha = .88 * objectMix * (1 - flight * .18);
+      context.fillStyle = '#9acfff';
       context.fill(accentGrains);
     }
 
