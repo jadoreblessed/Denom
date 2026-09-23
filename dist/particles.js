@@ -33,6 +33,8 @@ export class DenomMatter {
     this.tint = new Uint8Array(this.count);
     this.variant = new Uint8Array(this.count);
     this.pointer = { x: -9999, y: -9999, active: false };
+    this.pointA = new Float32Array(3);
+    this.pointB = new Float32Array(3);
     this.lastScene = -1;
 
     for (let index = 0; index < this.count; index += 1) {
@@ -47,6 +49,7 @@ export class DenomMatter {
     }
 
     this.sprites = this.makeSprites();
+    this.aura = this.makeAura();
     this.resize();
     this.buildShapes();
 
@@ -125,6 +128,19 @@ export class DenomMatter {
     return sprites;
   }
 
+  makeAura() {
+    const sprite = document.createElement('canvas');
+    sprite.width = sprite.height = 256;
+    const context = sprite.getContext('2d');
+    const glow = context.createRadialGradient(128, 128, 0, 128, 128, 128);
+    glow.addColorStop(0, 'rgba(39, 190, 255, .055)');
+    glow.addColorStop(.35, 'rgba(36, 120, 255, .018)');
+    glow.addColorStop(1, 'rgba(4, 18, 42, 0)');
+    context.fillStyle = glow;
+    context.fillRect(0, 0, 256, 256);
+    return sprite;
+  }
+
   blank() {
     return new Float32Array(this.count * 3);
   }
@@ -163,8 +179,11 @@ export class DenomMatter {
 
   writeText(output, start, end, value, { x = 0, y = 0, width = 0.48, size = 410, weight = 700 } = {}) {
     const mask = this.textPoints(value, size, weight);
+    const stride = mask.points.length / Math.max(1, end - start);
     for (let index = start; index < end; index += 1) {
-      const point = mask.points[Math.floor(this.random() * mask.points.length)];
+      // One sample per equal area of the glyph mask prevents random empty patches.
+      const sample = Math.min(mask.points.length - 1, Math.floor((index - start + this.random()) * stride));
+      const point = mask.points[sample];
       const cursor = index * 3;
       output[cursor] = x + (point[0] - mask.centerX) / mask.halfWidth * width;
       output[cursor + 1] = y + (point[1] - mask.centerY) / mask.halfWidth * width;
@@ -348,7 +367,7 @@ export class DenomMatter {
     return { cy: Math.cos(y), sy: Math.sin(y), cx: Math.cos(x), sx: Math.sin(x) };
   }
 
-  project(shape, cursor, frame, rotation) {
+  project(shape, cursor, frame, rotation, result) {
     let x = shape[cursor];
     let y = shape[cursor + 1];
     let z = shape[cursor + 2];
@@ -359,11 +378,9 @@ export class DenomMatter {
     z = y * rotation.sx + z * rotation.cx;
     y = rotatedY;
     const perspective = 1 / (1 - z * 0.34);
-    return {
-      x: frame.x + x * frame.unit * perspective,
-      y: frame.y + y * frame.unit * perspective,
-      z
-    };
+    result[0] = frame.x + x * frame.unit * perspective;
+    result[1] = frame.y + y * frame.unit * perspective;
+    result[2] = z;
   }
 
   setScroll(scene, local) {
@@ -443,12 +460,9 @@ export class DenomMatter {
   drawAura(frame, alpha, size = 0.42) {
     const context = this.context;
     const radius = Math.min(this.width, this.height) * size;
-    const gradient = context.createRadialGradient(frame.x, frame.y, 0, frame.x, frame.y, radius);
-    gradient.addColorStop(0, `rgba(39, 190, 255, ${0.055 * alpha})`);
-    gradient.addColorStop(0.35, `rgba(36, 120, 255, ${0.018 * alpha})`);
-    gradient.addColorStop(1, 'rgba(4, 18, 42, 0)');
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, this.width, this.height);
+    context.globalAlpha = alpha;
+    context.drawImage(this.aura, frame.x - radius, frame.y - radius, radius * 2, radius * 2);
+    context.globalAlpha = 1;
   }
 
   drawTerminalFragments(time, alpha) {
@@ -505,15 +519,17 @@ export class DenomMatter {
       const cosine = this.cosAngle[index];
       const sine = this.sinAngle[index];
       const depth = this.depth[index];
-      const a = this.project(from, cursor, fromFrame, fromRotation);
-      const b = rawTransition > 0 ? this.project(to, cursor, toFrame, toRotation) : a;
-      const visualDepth = mix(a.z, b.z, transition);
+      const a = this.pointA;
+      const b = rawTransition > 0 ? this.pointB : a;
+      this.project(from, cursor, fromFrame, fromRotation, a);
+      if (rawTransition > 0) this.project(to, cursor, toFrame, toRotation, b);
+      const visualDepth = mix(a[2], b[2], transition);
       const depthLight = clamp((visualDepth + 0.46) / 0.92);
       const arc = (0.12 + seed * 0.28) * Math.min(this.width, this.height) * flight;
       const driftX = cosine * arc + (scene % 2 ? -1 : 1) * arc * 0.16;
       const driftY = sine * arc * 0.6 - arc * 0.13;
-      let x = mix(a.x, b.x, transition) + driftX + depth * 7 * flight;
-      let y = mix(a.y, b.y, transition) + driftY - Math.abs(depth) * 4 * flight;
+      let x = mix(a[0], b[0], transition) + driftX + depth * 7 * flight;
+      let y = mix(a[1], b[1], transition) + driftY - Math.abs(depth) * 4 * flight;
 
       // Every hand-off passes through a twisting volumetric throat. This gives
       // the scroll a clear transition beat instead of a generic cross-morph.
@@ -535,8 +551,8 @@ export class DenomMatter {
         particleIntro = smooth(clamp(((time - this.birth) / 1750 - seed * .32) / .68));
         const distance = 105 + seed * Math.max(this.width, this.height) * 0.44;
         const spiral = angle + (1 - particleIntro) * (2.1 + depth * .8);
-        x = a.x + (1 - particleIntro) * Math.cos(spiral) * distance;
-        y = a.y + (1 - particleIntro) * Math.sin(spiral) * distance * 0.62;
+        x = a[0] + (1 - particleIntro) * Math.cos(spiral) * distance;
+        y = a[1] + (1 - particleIntro) * Math.sin(spiral) * distance * 0.62;
       } else if (rawTransition === 0) {
         const breathe = Math.sin(time * 0.0005 + angle + visualDepth * 4) * (0.32 + depthLight * 0.68);
         x += cosine * breathe;
