@@ -268,54 +268,29 @@ export class DenomMatter {
 
   makeIndexCore() {
     const output = this.blank();
-    const sphereEnd = Math.floor(this.count * 0.54);
-    const ringEnd = Math.floor(this.count * 0.86);
-    const spineEnd = Math.floor(this.count * 0.94);
-    const satellites = [[-0.46, -0.18, 0.055], [0.43, -0.23, 0.065], [0.47, 0.22, 0.046], [-0.36, 0.29, 0.052]];
-
-    for (let index = 0; index < sphereEnd; index += 1) {
-      const cursor = index * 3;
-      const u = (index + 0.5) / sphereEnd;
-      const z = 1 - 2 * u;
-      const ringRadius = Math.sqrt(Math.max(0, 1 - z * z));
-      const angle = index * Math.PI * (3 - Math.sqrt(5));
-      const shell = index % 5 === 0 ? 0.148 : 0.187;
-      const radius = shell + (this.seed[index] - 0.5) * 0.012;
-      output[cursor] = Math.cos(angle) * ringRadius * radius;
-      output[cursor + 1] = z * radius;
-      output[cursor + 2] = Math.sin(angle) * ringRadius * radius;
+    const glyphEnd = Math.floor(this.count * .7);
+    const orbitEnd = Math.floor(this.count * .94);
+    this.writeText(output, 0, glyphEnd, '1', { width: .125, size: 470, weight: 800 });
+    for (let index = 0; index < glyphEnd; index += 1) {
+      output[index * 3 + 2] += (this.seed[index] - .5) * .06;
     }
-
-    for (let index = sphereEnd; index < ringEnd; index += 1) {
+    for (let index = glyphEnd; index < orbitEnd; index += 1) {
+      const cursor = index * 3;
+      const lane = index % 3;
+      const angle = this.angle[index];
+      const rx = [.32, .275, .23][lane];
+      const ry = [.34, .315, .29][lane];
+      output[cursor] = Math.cos(angle) * rx + (this.seed[index] - .5) * .009;
+      output[cursor + 1] = Math.sin(angle) * ry + (this.seed[index] - .5) * .009;
+      output[cursor + 2] = [-.095, .045, .115][lane] + Math.sin(angle * 2) * .035;
+    }
+    for (let index = orbitEnd; index < this.count; index += 1) {
       const cursor = index * 3;
       const lane = index % 4;
-      const angle = this.angle[index];
-      const radius = 0.25 + lane * 0.057 + (this.seed[index] - 0.5) * 0.009;
-      const x = Math.cos(angle) * radius;
-      const y = Math.sin(angle) * radius * (0.28 + lane * 0.045);
-      const tilt = [-0.58, 0.24, 0.68, -0.12][lane];
-      output[cursor] = x * Math.cos(tilt) - y * Math.sin(tilt);
-      output[cursor + 1] = x * Math.sin(tilt) + y * Math.cos(tilt);
-      output[cursor + 2] = Math.sin(angle) * radius * 0.62 + (this.seed[index] - 0.5) * 0.018;
-    }
-
-    for (let index = ringEnd; index < spineEnd; index += 1) {
-      const cursor = index * 3;
-      const progress = (index - ringEnd) / Math.max(1, spineEnd - ringEnd - 1);
-      const angle = progress * TAU * 3.2;
-      output[cursor] = Math.cos(angle) * (0.075 + progress * 0.035);
-      output[cursor + 1] = -0.34 + progress * 0.68;
-      output[cursor + 2] = Math.sin(angle) * 0.12;
-    }
-
-    for (let index = spineEnd; index < this.count; index += 1) {
-      const cursor = index * 3;
-      const satellite = satellites[index % satellites.length];
-      const radius = Math.sqrt(this.random()) * satellite[2];
-      const angle = this.angle[index];
-      output[cursor] = satellite[0] + Math.cos(angle) * radius;
-      output[cursor + 1] = satellite[1] + Math.sin(angle) * radius;
-      output[cursor + 2] = (this.random() - 0.5) * 0.11;
+      const progress = (index - orbitEnd) / (this.count - orbitEnd);
+      output[cursor] = [-.32, .32, -.27, .27][lane] + (this.seed[index] - .5) * .009;
+      output[cursor + 1] = -.32 + progress * .64;
+      output[cursor + 2] = [-.09, -.09, .06, .06][lane];
     }
     return output;
   }
@@ -411,14 +386,14 @@ export class DenomMatter {
       state = (1664525 * state + 1013904223) >>> 0;
       return state / 4294967296;
     };
-    const sphereEnd = Math.floor(count * .54);
-    const ringEnd = Math.floor(count * .86);
-    const spineEnd = Math.floor(count * .94);
+    const glyphEnd = Math.floor(count * .7);
+    const ringEnd = Math.floor(count * .94);
+    const glyph = this.textPoints('1', 470, 800);
+    const glyphStride = glyph.points.length / glyphEnd;
     const torusEnd = Math.floor(count * .48);
     const orbitEnd = Math.floor(count * .84);
     const helixEnd = Math.floor(count * .96);
     const closes = [-.04,.015,-.008,.066,.112,.075,.155,.202,.146,.118,.172,.225,.19,.252,.218,.284];
-    const satellites = [[-.46,-.18,.055],[.43,-.23,.065],[.47,.22,.046],[-.36,.29,.052]];
     const nodes = [[-.34,0,0],[.34,0,0],[0,-.285,0],[0,.285,0]];
 
     for (let index = 0; index < count; index += 1) {
@@ -426,35 +401,23 @@ export class DenomMatter {
       const seed = random();
       const angle = random() * TAU;
 
-      if (index < sphereEnd) {
-        const z = 1 - 2 * (index + .5) / sphereEnd;
-        const circle = Math.sqrt(Math.max(0, 1 - z * z));
-        const phase = index * Math.PI * (3 - Math.sqrt(5));
-        const radius = (index % 5 === 0 ? .148 : .187) + (seed - .5) * .012;
-        indexCore[cursor] = Math.cos(phase) * circle * radius;
-        indexCore[cursor + 1] = z * radius;
-        indexCore[cursor + 2] = Math.sin(phase) * circle * radius;
+      if (index < glyphEnd) {
+        const sample = Math.min(glyph.points.length - 1, Math.floor((index + random()) * glyphStride));
+        const point = glyph.points[sample];
+        indexCore[cursor] = (point[0] - glyph.centerX) / glyph.halfWidth * .125;
+        indexCore[cursor + 1] = (point[1] - glyph.centerY) / glyph.halfWidth * .125;
+        indexCore[cursor + 2] = (seed - .5) * .13;
       } else if (index < ringEnd) {
-        const lane = index % 4;
-        const radius = .25 + lane * .057 + (seed - .5) * .009;
-        const x = Math.cos(angle) * radius;
-        const y = Math.sin(angle) * radius * (.28 + lane * .045);
-        const tilt = [-.58,.24,.68,-.12][lane];
-        indexCore[cursor] = x * Math.cos(tilt) - y * Math.sin(tilt);
-        indexCore[cursor + 1] = x * Math.sin(tilt) + y * Math.cos(tilt);
-        indexCore[cursor + 2] = Math.sin(angle) * radius * .62 + (random() - .5) * .018;
-      } else if (index < spineEnd) {
-        const progress = (index - ringEnd) / Math.max(1, spineEnd - ringEnd - 1);
-        const phase = progress * TAU * 3.2;
-        indexCore[cursor] = Math.cos(phase) * (.075 + progress * .035);
-        indexCore[cursor + 1] = -.34 + progress * .68;
-        indexCore[cursor + 2] = Math.sin(phase) * .12;
+        const lane = index % 3;
+        indexCore[cursor] = Math.cos(angle) * [.32,.275,.23][lane] + (seed - .5) * .009;
+        indexCore[cursor + 1] = Math.sin(angle) * [.34,.315,.29][lane] + (seed - .5) * .009;
+        indexCore[cursor + 2] = [-.095,.045,.115][lane] + Math.sin(angle * 2) * .035;
       } else {
-        const satellite = satellites[index % satellites.length];
-        const radius = Math.sqrt(seed) * satellite[2];
-        indexCore[cursor] = satellite[0] + Math.cos(angle) * radius;
-        indexCore[cursor + 1] = satellite[1] + Math.sin(angle) * radius;
-        indexCore[cursor + 2] = (random() - .5) * .11;
+        const lane = index % 4;
+        const progress = (index - ringEnd) / (count - ringEnd);
+        indexCore[cursor] = [-.32,.32,-.27,.27][lane] + (seed - .5) * .009;
+        indexCore[cursor + 1] = -.32 + progress * .64;
+        indexCore[cursor + 2] = [-.09,-.09,.06,.06][lane];
       }
 
       const lane = index % closes.length;
@@ -520,13 +483,13 @@ export class DenomMatter {
     let y = 0;
     let x = 0;
     if (scene === 1) {
-      y = time * 0.000048;
-      x = -0.12 + Math.sin(time * 0.000074) * 0.035;
+      y = Math.sin(time * .00013) * .18;
+      x = -.085 + Math.sin(time * .000095) * .045;
     } else if (scene === 2) {
       y = Math.sin(time * 0.00008) * 0.3;
       x = -0.24 + Math.sin(time * 0.000055) * 0.055;
     } else if (scene === 3) {
-      y = time * 0.000037;
+      y = Math.sin(time * .00009) * .32;
       x = -0.18 + Math.sin(time * 0.000064) * 0.09;
     }
     return { cy: Math.cos(y), sy: Math.sin(y), cx: Math.cos(x), sx: Math.sin(x) };
@@ -654,6 +617,47 @@ export class DenomMatter {
     context.globalAlpha = 1;
   }
 
+  drawUnitChamber(time, alpha) {
+    if (alpha < .005) return;
+    const context = this.context;
+    const frame = this.frameFor(1);
+    const breathe = Math.sin(time * .00033) * .008;
+    context.save();
+    context.translate(frame.x, frame.y);
+    context.scale(frame.unit, frame.unit);
+    context.lineWidth = 1 / frame.unit;
+    context.strokeStyle = `rgba(142, 216, 246, ${alpha * .17})`;
+    // The etched enclosure turns the unit mark into a physical, measured
+    // object. It is deliberately sparse so the individual grains stay clear.
+    for (let lane = -2; lane <= 2; lane += 1) {
+      context.beginPath();
+      context.ellipse(0, 0, .31 - Math.abs(lane) * .037 + breathe, .34, lane * .105, 0, TAU);
+      context.stroke();
+    }
+    for (let lane = -2; lane <= 2; lane += 1) {
+      const y = lane * .135;
+      const width = Math.sqrt(1 - (y / .37) ** 2) * .315;
+      context.beginPath();
+      context.ellipse(0, y, width, .025 + Math.abs(lane) * .009, -.025, 0, TAU);
+      context.stroke();
+    }
+    context.strokeStyle = `rgba(166, 231, 254, ${alpha * .29})`;
+    for (const edge of [-1, 1]) {
+      context.beginPath();
+      context.moveTo(edge * .355, -.31);
+      context.lineTo(edge * .355, .31);
+      context.stroke();
+      for (let tick = -5; tick <= 5; tick += 1) {
+        const y = tick * .059;
+        context.beginPath();
+        context.moveTo(edge * .355, y);
+        context.lineTo(edge * (.361 + (tick % 5 === 0 ? .012 : 0)), y);
+        context.stroke();
+      }
+    }
+    context.restore();
+  }
+
   drawTerminalFragments(time, alpha) {
     if (alpha <= 0.005) return;
     const context = this.context;
@@ -703,13 +707,15 @@ export class DenomMatter {
     }
     this.drawAura({ x: mix(fromFrame.x, toFrame.x, transition), y: mix(fromFrame.y, toFrame.y, transition) }, 1 - flight * 0.65, scene === 0 ? 0.48 : 0.39);
     if (scene === 0) this.drawHeroStars(time, this.local);
+    if (scene === 0) this.drawUnitChamber(time, softer((transition - .34) / .66));
+    if (scene === 1) this.drawUnitChamber(time, 1 - smooth(transition / .84));
     this.drawAtmosphere(time, scene, this.local, flight);
     this.drawTerminalFragments(time, scene === 2 ? 1 - transition : 0);
     context.globalCompositeOperation = 'screen';
 
     if (scene === 0) {
       const elapsed = time - this.birth;
-      const cohesion = 1 - smooth(transition / 0.62);
+      const cohesion = 1 - smooth(rawTransition / .28);
       context.globalAlpha = cohesion * 0.8;
       if (this.pointer.active && rawTransition < .45) {
         // The fine grain must leave with the large particles under the cursor.
@@ -832,14 +838,17 @@ export class DenomMatter {
 
     if (objectMix > 0) {
       context.globalCompositeOperation = 'source-over';
-      const accentGrains = new Path2D();
-      context.beginPath();
+      const iceGrains = new Path2D();
+      const cyanGrains = new Path2D();
+      const skyGrains = new Path2D();
+      const blueGrains = new Path2D();
+      const grainPaths = [iceGrains, cyanGrains, skyGrains, blueGrains];
       const detailScene = Math.max(1, scene);
       const detailNext = Math.max(1, next);
       const detailFrom = this.detailShapes[detailScene];
       const detailTo = this.detailShapes[detailNext];
-      const detailFade = scene === 0 ? softer((transition - .55) / .45) : 1;
-      const size = this.mobile ? 1.25 : 1.3;
+      const detailFade = scene === 0 ? softer((transition - .28) / .6) : 1;
+      const size = this.mobile ? 1.28 : 1.4;
       const a = this.detailPointA;
       const b = this.detailPointB;
       for (let index = 0; index < this.detailCount; index += 1) {
@@ -847,17 +856,21 @@ export class DenomMatter {
         this.project(detailFrom, cursor, fromFrame, fromRotation, a);
         if (rawTransition > 0) this.project(detailTo, cursor, toFrame, toRotation, b);
         const target = rawTransition > 0 ? b : a;
-        const x = mix(a[0], target[0], transition) + this.detailCos[index] * flight * 13;
-        const y = mix(a[1], target[1], transition) + this.detailSin[index] * flight * 10;
-        const dot = index % 19 === 0 ? size * 1.35 : size;
-        (index % 5 === 0 ? accentGrains : context).rect(x, y, dot, dot);
+        const drift = flight * (19 + (index % 11) * 1.4);
+        const x = mix(a[0], target[0], transition) + this.detailCos[index] * drift;
+        const y = mix(a[1], target[1], transition) + this.detailSin[index] * drift * .72;
+        const dot = index % 37 === 0 ? size * 1.25 : size;
+        const tint = index % 13;
+        grainPaths[tint < 2 ? 0 : tint < 6 ? 1 : tint < 10 ? 2 : 3].rect(x, y, dot, dot);
       }
-      context.globalAlpha = .94 * objectMix * detailFade * (1 - flight * .18);
-      context.fillStyle = '#439cf8';
-      context.fill();
-      context.globalAlpha = .88 * objectMix * detailFade * (1 - flight * .18);
-      context.fillStyle = '#9acfff';
-      context.fill(accentGrains);
+      const opacity = objectMix * detailFade * (1 - flight * .1);
+      const palette = ['#f7fdff', '#a7ecff', '#8eeaff', '#588cff'];
+      const alphas = [.8, .82, .8, .76];
+      for (let tint = 0; tint < 4; tint += 1) {
+        context.globalAlpha = alphas[tint] * opacity;
+        context.fillStyle = palette[tint];
+        context.fill(grainPaths[tint]);
+      }
     }
 
     context.globalCompositeOperation = 'source-over';

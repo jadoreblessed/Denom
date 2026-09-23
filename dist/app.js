@@ -92,21 +92,25 @@ function paintScroll() {
     if (y >= metrics[index].top - 2) active = index;
   }
   const local = clamp((y - metrics[active].top) / metrics[active].travel);
+  const nextEnter = !reduced && active < scenes.length - 1 ? smooth((local - .66) / .26) : 0;
   scenes.forEach((scene, index) => {
-    if (index !== active && scene.dataset.inactive === 'true') return;
-    const inactiveState = index !== active ? 'true' : 'false';
+    const upcoming = index === active + 1;
+    if (index !== active && !upcoming && scene.dataset.inactive === 'true') return;
+    const inactiveState = index !== active && !(upcoming && nextEnter > 0) ? 'true' : 'false';
     if (scene.dataset.inactive !== inactiveState) scene.dataset.inactive = inactiveState;
     const inner = scene.querySelector('.scene-inner');
     let opacity = 0;
     if (index === active) {
       const exit = active === scenes.length - 1 ? 1 : 1 - smooth((local - 0.53) / 0.43);
       opacity = exit;
+    } else if (upcoming) {
+      opacity = nextEnter;
     }
     if (reduced) opacity = index === active ? 1 : 0;
     inner.style.opacity = opacity.toFixed(3);
     inner.style.pointerEvents = opacity > 0.55 ? 'auto' : 'none';
 
-    const enterBase = reduced ? 1 : index === active ? smooth((local + 0.06) / 0.15) : 0;
+    const enterBase = reduced ? 1 : index === active ? smooth((local + 0.06) / 0.15) : upcoming ? nextEnter : 0;
     const leaveBase = reduced || index !== active || active === scenes.length - 1 ? 0 : smooth((local - 0.51) / 0.45);
     const motion = landingMotion[index];
     motion.words.forEach((word, wordIndex) => {
@@ -116,7 +120,7 @@ function paintScroll() {
       const leave = smooth((leaveBase - exitStagger) / Math.max(0.01, 1 - exitStagger));
       const visible = enter * (1 - leave);
       word.style.opacity = visible.toFixed(3);
-      word.style.transform = reduced ? 'none' : `translate(${(leave * (wordIndex % 2 ? 90 : -90)).toFixed(2)}px, ${((1 - enter) * 94 - leave * 76).toFixed(2)}%) rotate(${(leave * (wordIndex % 2 ? 5 : -5)).toFixed(2)}deg)`;
+      word.style.transform = reduced ? 'none' : `translate(${(leave * (wordIndex % 2 ? 90 : -90)).toFixed(2)}px, ${((1 - enter) * 35 - leave * 32).toFixed(2)}%) rotate(${(leave * (wordIndex % 2 ? 5 : -5)).toFixed(2)}deg)`;
     });
     motion.details.forEach((detail, detailIndex) => {
       const stagger = Math.min(0.24, detailIndex * 0.06);
