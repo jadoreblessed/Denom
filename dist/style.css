@@ -78,11 +78,11 @@ body[data-scene="0"] .ambient::before { opacity: .55; }
   flex-direction: column;
   gap: 20px;
   background: #0a1a29;
-  transition: opacity .8s, visibility .8s;
+  transition: opacity .6s, visibility .6s;
 }
 .loader strong { font-size: clamp(2rem, 5vw, 4.5rem); font-weight: 300; letter-spacing: -.07em; }
 .loader div { width: 210px; height: 1px; background: rgba(151, 224, 255, .18); }
-.loader i { display: block; width: 0; height: 100%; background: var(--azure); animation: load 1.15s cubic-bezier(.2, .8, .2, 1) forwards; }
+.loader i { display: block; width: 0; height: 100%; background: var(--azure); animation: load .82s cubic-bezier(.2, .8, .2, 1) forwards; }
 .loaded .loader { opacity: 0; visibility: hidden; }
 
 .topbar {

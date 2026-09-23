@@ -23,7 +23,7 @@ function finishLoading() {
   loadingFinished = true;
   document.body.classList.add('loaded');
   queueScroll();
-  setTimeout(() => document.querySelector('.loader')?.remove(), reduced ? 0 : 850);
+  setTimeout(() => document.querySelector('.loader')?.remove(), reduced ? 0 : 620);
 }
 
 function splitMotionWords(element) {
@@ -662,6 +662,6 @@ requestAnimationFrame(() => {
   measure();
   paintScroll();
   matter?.start();
-  setTimeout(finishLoading, reduced ? 80 : 1050);
+  setTimeout(finishLoading, reduced ? 80 : 420);
 });
 setTimeout(finishLoading, 3200);

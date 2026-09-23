@@ -5,6 +5,10 @@ const smooth = value => {
   const t = clamp(value);
   return t * t * (3 - 2 * t);
 };
+const softer = value => {
+  const t = clamp(value);
+  return t * t * t * (t * (t * 6 - 15) + 10);
+};
 
 export class DenomMatter {
   constructor(canvas, { reduced = false } = {}) {
@@ -408,14 +412,14 @@ export class DenomMatter {
     let y = 0;
     let x = 0;
     if (scene === 1) {
-      y = time * 0.000075;
-      x = -0.12 + Math.sin(time * 0.00011) * 0.035;
+      y = time * 0.000048;
+      x = -0.12 + Math.sin(time * 0.000074) * 0.035;
     } else if (scene === 2) {
-      y = Math.sin(time * 0.00012) * 0.3;
-      x = -0.24 + Math.sin(time * 0.000085) * 0.055;
+      y = Math.sin(time * 0.00008) * 0.3;
+      x = -0.24 + Math.sin(time * 0.000055) * 0.055;
     } else if (scene === 3) {
-      y = time * 0.000055;
-      x = -0.18 + Math.sin(time * 0.000095) * 0.09;
+      y = time * 0.000037;
+      x = -0.18 + Math.sin(time * 0.000064) * 0.09;
     }
     return { cy: Math.cos(y), sy: Math.sin(y), cx: Math.cos(x), sx: Math.sin(x) };
   }
@@ -491,7 +495,7 @@ export class DenomMatter {
     // A continuous, low-cost ash layer survives every shape morph and every scene.
     const context = this.context;
     const progress = scene + local;
-    const motion = time * .012 + progress * 110;
+    const motion = time * .008 + progress * 92;
     const amount = this.mobile ? 104 : 220;
     context.globalCompositeOperation = 'screen';
     for (let index = 0; index < amount; index += 1) {
@@ -522,7 +526,7 @@ export class DenomMatter {
       const u = (index * 0.61803398875 + 0.19) % 1;
       const v = (index * 0.75487766625 + 0.31) % 1;
       const layer = index % 3;
-      const x = (u * (this.width + 28) + elapsed * (0.0025 + layer * 0.0018)) % (this.width + 28) - 14;
+      const x = (u * (this.width + 28) + elapsed * (0.0018 + layer * 0.0013)) % (this.width + 28) - 14;
       const y = v * this.height + Math.sin(elapsed * 0.00022 + index * 3.2) * (1.5 + layer * 1.8);
       const core = Math.abs(x / this.width - 0.5) < 0.34 && Math.abs(y / this.height - 0.43) < 0.22;
       const light = 0.72 + 0.28 * Math.sin(elapsed * (0.0011 + layer * 0.0003) + index * 2.4);
@@ -575,7 +579,7 @@ export class DenomMatter {
     const fromFrame = this.frameFor(scene);
     const toFrame = this.frameFor(next);
     const rawTransition = next === scene ? 0 : clamp((this.local - 0.4) / 0.6);
-    const transition = smooth(rawTransition);
+    const transition = softer(rawTransition);
     const flight = Math.sin(transition * Math.PI);
     const fromRotation = this.rotationFor(scene, time);
     const toRotation = rawTransition > 0 ? this.rotationFor(next, time) : fromRotation;
@@ -596,9 +600,9 @@ export class DenomMatter {
     context.globalCompositeOperation = 'screen';
 
     if (scene === 0) {
-      const gather = smooth((time - this.birth - 350) / 2800);
-      const cohesion = 1 - smooth((transition - 0.02) / 0.74);
-      context.globalAlpha = gather * cohesion * 0.88;
+      const elapsed = time - this.birth;
+      const cohesion = 1 - smooth(transition / 0.62);
+      context.globalAlpha = cohesion * 0.88;
       if (this.pointer.active && rawTransition < .45) {
         // The fine grain must leave with the large particles under the cursor.
         // Clip only its local area; the rest of the wordmark stays dense.
@@ -610,7 +614,27 @@ export class DenomMatter {
       }
       this.heroDust.forEach(glyph => {
         const breath = Math.sin(time * 0.00068 + glyph.index * 1.8) * 0.7;
-        context.drawImage(glyph.canvas, glyph.x + breath, glyph.y - breath * 0.5);
+        if (this.reduced || elapsed > 5900) {
+          context.drawImage(glyph.canvas, glyph.x + breath, glyph.y - breath * 0.5);
+          return;
+        }
+        // A travelling bank of fine ash fills the letters after their bright
+        // particles arrive. Tiles remain invisible until that part has formed.
+        const slices = glyph.index === 0 ? 14 : 8;
+        const sliceWidth = glyph.canvas.width / slices;
+        for (let slice = 0; slice < slices; slice += 1) {
+          const from = Math.floor(slice * sliceWidth);
+          const to = Math.ceil((slice + 1) * sliceWidth);
+          const width = to - from;
+          const order = glyph.index === 0 ? slice / slices : (slices - slice - 1) / slices;
+          const arrival = softer((elapsed - 2800 - order * 1100) / 1550);
+          if (arrival <= 0) continue;
+          context.globalAlpha = cohesion * arrival * 0.88;
+          const drift = (1 - arrival) * (order - 0.5) * 38;
+          context.drawImage(glyph.canvas, from, 0, width, glyph.canvas.height,
+            glyph.x + from + drift + breath, glyph.y + (1 - arrival) * Math.sin(slice * 2.4) * 15 - breath * 0.5,
+            width, glyph.canvas.height);
+        }
       });
       if (this.pointer.active && rawTransition < .45) context.restore();
       context.globalAlpha = 1;
@@ -652,16 +676,16 @@ export class DenomMatter {
 
       let particleIntro = 1;
       if (scene === 0 && rawTransition === 0) {
-        particleIntro = smooth(clamp(((time - this.birth) / 2600 - seed * .28) / .72));
+        particleIntro = this.reduced ? 1 : softer(clamp(((time - this.birth) / 4400 - seed * .26) / .74));
         const distance = 105 + seed * Math.max(this.width, this.height) * 0.44;
         const spiral = angle + (1 - particleIntro) * (2.1 + depth * .8);
         x = a[0] + (1 - particleIntro) * Math.cos(spiral) * distance;
         y = a[1] + (1 - particleIntro) * Math.sin(spiral) * distance * 0.62;
         // The original hero branch stayed here after assembly, so its idle
         // motion never ran. Let the lettering breathe once it has formed.
-        const idle = smooth((time - this.birth - 1900) / 1100) * (index < this.heroMainEnd ? 1 : 0.42);
-        x += Math.sin(time * 0.00105 + angle * 1.7 + seed * 6) * (0.85 + depthLight * 1.7) * idle;
-        y += Math.sin(time * 0.00083 + angle * 1.3 + seed * 4) * (0.8 + depthLight * 1.4) * idle;
+        const idle = this.reduced ? 0 : smooth((time - this.birth - 3200) / 1600) * (index < this.heroMainEnd ? 1 : 0.42);
+        x += Math.sin(time * 0.0007 + angle * 1.7 + seed * 6) * (0.85 + depthLight * 1.7) * idle;
+        y += Math.sin(time * 0.00055 + angle * 1.3 + seed * 4) * (0.8 + depthLight * 1.4) * idle;
       } else if (rawTransition === 0) {
         const breathe = Math.sin(time * 0.0005 + angle + visualDepth * 4) * (0.32 + depthLight * 0.68);
         x += cosine * breathe;
