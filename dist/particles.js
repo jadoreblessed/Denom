@@ -36,8 +36,9 @@ export class DenomMatter {
     this.radius = new Float32Array(this.count);
     this.tint = new Uint8Array(this.count);
     this.variant = new Uint8Array(this.count);
-    this.satelliteX = new Float32Array(this.count * 17);
-    this.satelliteY = new Float32Array(this.count * 17);
+    this.grainCount = 25;
+    this.satelliteX = new Float32Array(this.count * this.grainCount);
+    this.satelliteY = new Float32Array(this.count * this.grainCount);
     this.screenX = new Float32Array(this.count);
     this.screenY = new Float32Array(this.count);
     this.pointer = { x: -9999, y: -9999, active: false };
@@ -55,11 +56,11 @@ export class DenomMatter {
       this.radius[index] = 0.56 + this.random() * 0.72;
       this.tint[index] = Math.floor(this.random() * 5);
       this.variant[index] = this.random() > 0.82 ? 1 : 0;
-      for (let spark = 0; spark < 17; spark += 1) {
-        const angle = this.angle[index] + spark * 2.399963229728653;
-        const distance = 1.2 + ((index * 0.61803398875 + spark * 0.75487766625) % 1) * 5.5;
-        this.satelliteX[index * 17 + spark] = Math.cos(angle) * distance;
-        this.satelliteY[index * 17 + spark] = Math.sin(angle) * distance;
+      for (let spark = 0; spark < this.grainCount; spark += 1) {
+        const angle = this.random() * TAU;
+        const distance = Math.sqrt(this.random()) * 7.5;
+        this.satelliteX[index * this.grainCount + spark] = Math.cos(angle) * distance;
+        this.satelliteY[index * this.grainCount + spark] = Math.sin(angle) * distance;
       }
     }
 
@@ -640,6 +641,7 @@ export class DenomMatter {
       context.globalAlpha = 1;
     }
 
+    const objectMix = scene === 0 ? softer((transition - .38) / .62) : 1;
     for (let index = 0; index < this.count; index += 1) {
       const cursor = index * 3;
       const seed = this.seed[index];
@@ -710,29 +712,33 @@ export class DenomMatter {
       const depthScale = scene === 0 ? 0.94 + depthLight * 0.28 : 0.74 + depthLight * 0.7;
       const particleRadius = this.radius[index] * depthScale * (scene === 0 ? 1.72 : 1.68) * (1 - flight * 0.1) * (1 + proximity * .35);
       const twinkle = flight > .05 && index % 17 === 0 ? .8 + .2 * Math.sin(time * .005 + angle * 4) : scene === 0 && rawTransition === 0 && index % 13 === 0 ? .9 + .1 * Math.sin(time * .0012 + angle * 4) : 1;
-      const alpha = ((scene === 0 ? 0.82 : 0.78) + seed * 0.12 + depthLight * 0.1) * (scene === 0 && rawTransition === 0 ? particleIntro : 1) * twinkle;
+      const brightFleck = index % 31 === 0;
+      const heroAlpha = (0.82 + seed * 0.12 + depthLight * 0.1) * (scene === 0 && rawTransition === 0 ? particleIntro : 1) * twinkle;
+      const grainAlpha = 0.22 + seed * 0.09 + depthLight * 0.12 + (brightFleck ? 0.25 : 0);
+      const alpha = mix(heroAlpha, grainAlpha, objectMix);
       const sprite = this.sprites[this.tint[index] * 2 + this.variant[index]];
-      const spriteSize = particleRadius * 5.9;
+      const spriteSize = particleRadius * mix(5.9, brightFleck ? 4.4 : 2.4, objectMix);
       context.globalAlpha = alpha;
 
       context.drawImage(sprite, x - spriteSize / 2, y - spriteSize / 2, spriteSize, spriteSize);
-      if (scene !== 0) {
+      if (objectMix > 0) {
         this.screenX[index] = x;
         this.screenY[index] = y;
       }
     }
 
-    if (scene !== 0) {
-      context.globalAlpha = .69 * (1 - flight * .28);
-      context.fillStyle = '#b1eeff';
+    if (objectMix > 0) {
+      context.globalCompositeOperation = 'source-over';
+      context.globalAlpha = .68 * objectMix * (1 - flight * .2);
+      context.fillStyle = '#a9d8e9';
       context.beginPath();
-      const spread = scene === 2 ? .62 : 1;
+      const spread = scene === 2 ? .42 : 1;
       for (let index = 0; index < this.count; index += 1) {
         const x = this.screenX[index];
         const y = this.screenY[index];
-        for (let spark = 0; spark < 17; spark += 1) {
-          const slot = index * 17 + spark;
-          context.rect(x + this.satelliteX[slot] * spread, y + this.satelliteY[slot] * spread, 1, 1);
+        for (let spark = 0; spark < this.grainCount; spark += 1) {
+          const slot = index * this.grainCount + spark;
+          context.rect(x + this.satelliteX[slot] * spread, y + this.satelliteY[slot] * spread, 1.1, 1.1);
         }
       }
       context.fill();
