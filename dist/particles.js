@@ -195,6 +195,7 @@ export class DenomMatter {
     const output = this.blank();
     const baseCount = this.count - this.heroExtra;
     const mainEnd = Math.floor(baseCount * 0.84);
+    this.heroMainEnd = mainEnd;
     // Concentrate the added particles in the smaller 0x mark without thinning DENOM or X.
     const contractEnd = Math.floor(baseCount * 0.92) + this.heroExtra;
     const sideY = this.mobile ? 0.16 : 0.15;
@@ -457,6 +458,30 @@ export class DenomMatter {
     context.globalAlpha = 1;
   }
 
+  drawHeroStars(time, local) {
+    // Keep the photographic nebula still; only these few distant points move.
+    const context = this.context;
+    const fade = 1 - smooth((local - 0.42) / 0.46);
+    if (fade <= 0) return;
+    const elapsed = time - this.birth;
+    const amount = this.mobile ? 30 : 72;
+    context.globalCompositeOperation = 'screen';
+    for (let index = 0; index < amount; index += 1) {
+      const u = (index * 0.61803398875 + 0.19) % 1;
+      const v = (index * 0.75487766625 + 0.31) % 1;
+      const layer = index % 3;
+      const x = (u * (this.width + 28) + elapsed * (0.0035 + layer * 0.0028)) % (this.width + 28) - 14;
+      const y = v * this.height + Math.sin(elapsed * 0.00022 + index * 3.2) * (1.5 + layer * 1.8);
+      const core = Math.abs(x / this.width - 0.5) < 0.34 && Math.abs(y / this.height - 0.43) < 0.22;
+      const light = 0.72 + 0.28 * Math.sin(elapsed * (0.0011 + layer * 0.0003) + index * 2.4);
+      const near = index % 9 === 0;
+      const size = (near ? 5.1 : 2.4) + layer * 0.3;
+      context.globalAlpha = fade * light * (core ? 0.12 : near ? 0.46 : 0.27);
+      context.drawImage(this.sprites[(index % 5) * 2], x - size / 2, y - size / 2, size, size);
+    }
+    context.globalAlpha = 1;
+  }
+
   drawAura(frame, alpha, size = 0.42) {
     const context = this.context;
     const radius = Math.min(this.width, this.height) * size;
@@ -507,7 +532,14 @@ export class DenomMatter {
     const phaseCos = Math.cos(phase);
     const phaseSin = Math.sin(phase);
 
+    if (scene === 0) {
+      const fade = 1 - smooth((this.local - 0.42) / 0.46);
+      const breath = Math.sin((time - this.birth) * 0.00045);
+      this.drawAura({ x: this.width * 0.13, y: this.height * 0.22 }, fade * (0.95 + breath * 0.22), 0.38);
+      this.drawAura({ x: this.width * 0.91, y: this.height * 0.67 }, fade * (0.72 - breath * 0.17), 0.34);
+    }
     this.drawAura({ x: mix(fromFrame.x, toFrame.x, transition), y: mix(fromFrame.y, toFrame.y, transition) }, 1 - flight * 0.65, scene === 0 ? 0.48 : 0.39);
+    if (scene === 0) this.drawHeroStars(time, this.local);
     this.drawAtmosphere(time, scene, this.local, flight);
     this.drawTerminalFragments(time, scene === 2 ? 1 - transition : 0);
     context.globalCompositeOperation = 'screen';
@@ -553,6 +585,11 @@ export class DenomMatter {
         const spiral = angle + (1 - particleIntro) * (2.1 + depth * .8);
         x = a[0] + (1 - particleIntro) * Math.cos(spiral) * distance;
         y = a[1] + (1 - particleIntro) * Math.sin(spiral) * distance * 0.62;
+        // The original hero branch stayed here after assembly, so its idle
+        // motion never ran. Let the lettering breathe once it has formed.
+        const idle = smooth((time - this.birth - 1250) / 750) * (index < this.heroMainEnd ? 1 : 0.42);
+        x += Math.sin(time * 0.00105 + angle * 1.7 + seed * 6) * (0.85 + depthLight * 1.7) * idle;
+        y += Math.sin(time * 0.00083 + angle * 1.3 + seed * 4) * (0.8 + depthLight * 1.4) * idle;
       } else if (rawTransition === 0) {
         const breathe = Math.sin(time * 0.0005 + angle + visualDepth * 4) * (0.32 + depthLight * 0.68);
         x += cosine * breathe;
@@ -576,7 +613,7 @@ export class DenomMatter {
 
       const depthScale = scene === 0 ? 0.94 + depthLight * 0.28 : 0.74 + depthLight * 0.7;
       const particleRadius = this.radius[index] * depthScale * (scene === 0 ? 1.72 : 1.68) * (1 - flight * 0.1) * (1 + proximity * .35);
-      const twinkle = flight > .05 && index % 17 === 0 ? .68 + .32 * Math.sin(time * .011 + angle * 4) : 1;
+      const twinkle = flight > .05 && index % 17 === 0 ? .68 + .32 * Math.sin(time * .011 + angle * 4) : scene === 0 && rawTransition === 0 && index % 13 === 0 ? .86 + .14 * Math.sin(time * .002 + angle * 4) : 1;
       const alpha = ((scene === 0 ? 0.82 : 0.78) + seed * 0.12 + depthLight * 0.1) * (scene === 0 && rawTransition === 0 ? particleIntro : 1) * twinkle;
       const sprite = this.sprites[this.tint[index] * 2 + this.variant[index]];
       const spriteSize = particleRadius * 5.9;
