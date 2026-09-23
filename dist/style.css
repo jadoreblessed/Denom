@@ -11,7 +11,6 @@
   --line: rgba(157, 225, 255, .16);
   --line-strong: rgba(157, 225, 255, .3);
   --pad: clamp(22px, 3.7vw, 66px);
-  --handoff: 0;
 }
 
 * { box-sizing: border-box; }
@@ -29,7 +28,6 @@ body.app-open main,
 body.app-open #matter,
 body.app-open .canvas-fallback,
 body.app-open > .ambient,
-body.app-open > .grain { visibility: hidden; }
 button, input, textarea { font: inherit; }
 button { color: inherit; cursor: pointer; }
 a { color: inherit; text-decoration: none; }
@@ -43,25 +41,21 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .sr-only, .skip:not(:focus) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .skip:focus { position: fixed; z-index: 100; left: 14px; top: 14px; padding: 10px 15px; color: #031018; background: var(--azure); }
 
-.ambient, .grain, #matter, .canvas-fallback { position: fixed; inset: 0; pointer-events: none; }
-.ambient { z-index: 0; overflow: hidden; background: #03070d; transition: background 1.8s ease; }
-.ambient i { position: absolute; display: block; width: 82vw; height: 82vw; border-radius: 50%; opacity: .46; transition: transform 1.8s cubic-bezier(.2,.7,.2,1), opacity 1.8s ease; }
+.ambient, #matter, .canvas-fallback { position: fixed; inset: 0; pointer-events: none; }
+.ambient { z-index: 0; overflow: hidden; background: #03070d; }
+.ambient::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(3, 7, 13, .22), rgba(3, 7, 13, .12) 54%, #03070d 100%), url('assets/galaxy-hero.webp') center / cover no-repeat;
+  opacity: 0;
+  transition: opacity .85s ease;
+}
+body[data-scene="0"] .ambient::before { opacity: .48; }
+.ambient i { position: absolute; display: block; width: 82vw; height: 82vw; border-radius: 50%; opacity: .46; }
 .ambient i:nth-child(1) { left: -34vw; top: -26vw; background: radial-gradient(circle, rgba(21, 104, 166, .38), rgba(23, 111, 180, 0) 69%); }
 .ambient i:nth-child(2) { right: -28vw; top: -38vw; background: radial-gradient(circle, rgba(104, 205, 236, .25), rgba(66, 217, 255, 0) 70%); }
 .ambient i:nth-child(3) { left: 22vw; bottom: -62vw; background: radial-gradient(circle, rgba(52, 124, 255, .21), rgba(52, 124, 255, 0) 72%); }
-body[data-scene="1"] .ambient i:nth-child(1) { transform: translate(17vw, 18vh) scale(1.05); opacity: .52; }
-body[data-scene="1"] .ambient i:nth-child(2) { transform: translate(-11vw, 28vh) scale(.92); opacity: .5; }
-body[data-scene="2"] .ambient i:nth-child(1) { transform: translate(48vw, 31vh) scale(.84); opacity: .5; }
-body[data-scene="2"] .ambient i:nth-child(2) { transform: translate(-48vw, 43vh) scale(1.08); opacity: .47; }
-body[data-scene="3"] .ambient i:nth-child(1) { transform: translate(37vw, 20vh) scale(.9); opacity: .44; }
-body[data-scene="3"] .ambient i:nth-child(2) { transform: translate(-31vw, 39vh) scale(1.14); opacity: .5; }
-.grain {
-  z-index: 25;
-  inset: -20%;
-  opacity: .08;
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.78' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
-}
 #matter { z-index: 2; width: 100%; height: 100%; }
 .canvas-fallback {
   z-index: 2;
@@ -129,7 +123,6 @@ body[data-scene="3"] .ambient i:nth-child(2) { transform: translate(-31vw, 39vh)
   border-radius: 999px;
   background: rgba(3, 9, 15, .68);
   box-shadow: inset 0 1px 0 rgba(224, 249, 255, .08), 0 18px 55px rgba(0, 0, 0, .35);
-  backdrop-filter: blur(22px);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -179,14 +172,13 @@ body[data-scene="3"] .ambient i:nth-child(2) { transform: translate(-31vw, 39vh)
 }
 .portal-scene { height: 172svh; }
 .scene-inner {
-  position: sticky;
-  top: 0;
+  position: fixed;
+  inset: 0;
   height: 100svh;
   min-height: 620px;
   overflow: hidden;
   padding: var(--pad);
   opacity: 0;
-  will-change: opacity, transform;
 }
 .scene-title {
   position: absolute;
@@ -210,13 +202,9 @@ body[data-scene="3"] .ambient i:nth-child(2) { transform: translate(-31vw, 39vh)
   display: inline-block;
   opacity: 0;
   transform-origin: 50% 100%;
-  will-change: transform, opacity, filter;
 }
 .motion-detail {
   opacity: var(--motion-opacity, 0);
-  filter: blur(var(--motion-blur, 7px));
-  clip-path: inset(var(--motion-clip, 100%) 0 0 0);
-  will-change: transform, opacity, filter, clip-path;
 }
 .scene-copy.motion-detail,
 .unit-index.motion-detail,
@@ -315,7 +303,6 @@ body[data-scene="3"] .ambient i:nth-child(2) { transform: translate(-31vw, 39vh)
   border-radius: 16px 16px 0 0;
   background: linear-gradient(150deg, rgba(9, 23, 35, .91), rgba(3, 10, 17, .74));
   box-shadow: inset 0 1px 0 rgba(227, 250, 255, .09), 0 26px 70px rgba(0,0,0,.28);
-  backdrop-filter: blur(8px);
   -webkit-mask-image: linear-gradient(to bottom, #000 0 84%, rgba(0,0,0,.9) 90%, rgba(0,0,0,.45) 96%, transparent 100%);
   mask-image: linear-gradient(to bottom, #000 0 84%, rgba(0,0,0,.9) 90%, rgba(0,0,0,.45) 96%, transparent 100%);
   transform: translate3d(0, var(--motion-y, 24px), 0);
@@ -651,6 +638,7 @@ dialog .primary-action { width: max-content; margin-top: 24px; }
 }
 
 @media (max-width: 760px) {
+  .ambient::before { background-position: center, 25% center; }
   :root { --pad: 20px; }
   .topbar { left: 14px; right: 12px; top: 12px; grid-template-columns: 1fr auto; }
   .topbar nav { position: absolute; left: -14px; right: -12px; top: 55px; width: calc(100% + 26px); max-width: none; padding: 4px 10px; border-left: 0; border-right: 0; border-radius: 0; }

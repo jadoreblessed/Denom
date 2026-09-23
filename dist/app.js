@@ -75,8 +75,8 @@ function showToast(message) {
 }
 
 function measure() {
-  // The next sticky panel becomes visible one viewport before its section top.
-  // Using that visual boundary removes the dead scroll gap between scenes.
+  // Start the next fixed panel one viewport before its section top, so
+  // consecutive scenes trade places without an empty scroll gap.
   const tops = scenes.map((scene, index) => Math.max(0, scene.offsetTop - (index ? innerHeight : 0)));
   metrics = scenes.map((scene, index) => ({
     top: tops[index],
@@ -93,6 +93,9 @@ function paintScroll() {
   }
   const local = clamp((y - metrics[active].top) / metrics[active].travel);
   scenes.forEach((scene, index) => {
+    if (index !== active && scene.dataset.inactive === 'true') return;
+    const inactiveState = index !== active ? 'true' : 'false';
+    if (scene.dataset.inactive !== inactiveState) scene.dataset.inactive = inactiveState;
     const inner = scene.querySelector('.scene-inner');
     let opacity = 0;
     if (index === active) {
@@ -101,10 +104,6 @@ function paintScroll() {
     }
     if (reduced) opacity = index === active ? 1 : 0;
     inner.style.opacity = opacity.toFixed(3);
-    // Pin the entering panel during its first viewport of travel. Without this,
-    // the canvas morphs on time but the section's text remains below the fold.
-    const beforeSticky = index === active ? Math.max(0, scene.offsetTop - y) : 0;
-    inner.style.transform = reduced ? 'none' : `translate3d(0, ${(-beforeSticky + (1 - opacity) * 18).toFixed(2)}px, 0)`;
     inner.style.pointerEvents = opacity > 0.55 ? 'auto' : 'none';
 
     const enterBase = reduced ? 1 : index === active ? smooth((local + 0.06) / 0.075) : 0;
@@ -117,8 +116,7 @@ function paintScroll() {
       const leave = smooth((leaveBase - exitStagger) / Math.max(0.01, 1 - exitStagger));
       const visible = enter * (1 - leave);
       word.style.opacity = visible.toFixed(3);
-      word.style.filter = reduced ? 'none' : `blur(${((1 - enter) * 8 + leave * 8).toFixed(2)}px)`;
-      word.style.transform = reduced ? 'none' : `translate3d(${(leave * (wordIndex % 2 ? 110 : -110)).toFixed(2)}px, ${((1 - enter) * 112 - leave * 95).toFixed(2)}%, 0) rotate(${(leave * (wordIndex % 2 ? 7 : -7)).toFixed(2)}deg) rotateX(${((1 - enter) * -68 + leave * 30).toFixed(2)}deg)`;
+      word.style.transform = reduced ? 'none' : `translate(${(leave * (wordIndex % 2 ? 90 : -90)).toFixed(2)}px, ${((1 - enter) * 94 - leave * 76).toFixed(2)}%) rotate(${(leave * (wordIndex % 2 ? 5 : -5)).toFixed(2)}deg)`;
     });
     motion.details.forEach((detail, detailIndex) => {
       const stagger = Math.min(0.24, detailIndex * 0.06);
@@ -126,12 +124,9 @@ function paintScroll() {
       const leave = smooth((leaveBase - stagger * 0.5) / Math.max(0.01, 1 - stagger * 0.5));
       detail.style.setProperty('--motion-opacity', (enter * (1 - leave)).toFixed(3));
       detail.style.setProperty('--motion-y', `${((1 - enter) * 24 - leave * 18).toFixed(2)}px`);
-      detail.style.setProperty('--motion-blur', `${((1 - enter) * 7 + leave * 4).toFixed(2)}px`);
-      detail.style.setProperty('--motion-clip', `${((1 - enter) * 100).toFixed(2)}%`);
     });
   });
-  document.body.dataset.scene = String(active);
-  document.body.style.setProperty('--handoff', active === scenes.length - 1 ? '0' : smooth((local - 0.49) / 0.49).toFixed(3));
+  if (document.body.dataset.scene !== String(active)) document.body.dataset.scene = String(active);
   matter?.setScroll(active, local);
 }
 

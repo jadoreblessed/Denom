@@ -20,6 +20,8 @@ export class DenomMatter {
     const cores = window.navigator?.hardwareConcurrency || 4;
     this.count = innerWidth < 680 ? (cores < 6 ? 850 : 1100) : innerWidth < 1100 ? (cores < 6 ? 1450 : 1850) : (cores < 6 ? 1950 : 2350);
     this.frameInterval = innerWidth < 680 ? 29 : 15;
+    this.slowFrames = 0;
+    this.fastFrames = 0;
     this.seed = new Float32Array(this.count);
     this.angle = new Float32Array(this.count);
     this.cosAngle = new Float32Array(this.count);
@@ -391,7 +393,21 @@ export class DenomMatter {
   tick(time) {
     if (!this.running || document.hidden || this.suspended) return;
     if (time - this.previous > this.frameInterval) {
+      const drawStart = performance.now();
       this.render(time);
+      const drawTime = performance.now() - drawStart;
+      if (drawTime > 10) {
+        this.slowFrames += 1;
+        this.fastFrames = 0;
+        if (this.slowFrames >= 8) this.frameInterval = this.mobile ? 36 : 31;
+      } else if (drawTime < 5) {
+        this.fastFrames += 1;
+        this.slowFrames = 0;
+        if (this.fastFrames >= 100) this.frameInterval = this.mobile ? 29 : 15;
+      } else {
+        this.slowFrames = 0;
+        this.fastFrames = 0;
+      }
       this.previous = time;
     }
     this.frame = requestAnimationFrame(value => this.tick(value));
