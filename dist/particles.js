@@ -776,11 +776,6 @@ export class DenomMatter {
         const local = this.heroHoverContext;
         local.clearRect(0, 0, this.width, this.height);
         local.drawImage(this.heroDustCanvas, 0, 0, this.width, this.height);
-        local.globalCompositeOperation = 'destination-out';
-        local.beginPath();
-        local.arc(px, py, radius, 0, TAU);
-        local.fill();
-        local.globalCompositeOperation = 'source-over';
         this.drawHeroPointer(local, radius);
         this.heroPointerX = px;
         this.heroPointerY = py;
@@ -796,8 +791,8 @@ export class DenomMatter {
   drawHeroPointer(context, radius) {
     const px = this.pointer.x;
     const py = this.pointer.y;
-    const radius2 = radius * radius;
     const paths = Array.from({ length: 5 }, () => new Path2D());
+    const erased = new Path2D();
     for (const glyph of this.heroDust) {
       for (let index = 0; index < glyph.count; index += 1) {
         const originalX = glyph.screenX[index];
@@ -805,16 +800,20 @@ export class DenomMatter {
         const dx = originalX - px;
         const dy = originalY - py;
         const squared = dx * dx + dy * dy;
-        if (squared >= radius2) continue;
+        const reach = radius * (.72 + ((index * .61803398875 + glyph.index * .37) % 1) * .42);
+        if (squared >= reach * reach) continue;
         const distance = Math.sqrt(squared);
         const angle = index * 2.399963229728653;
         const nx = distance > .01 ? dx / distance : Math.cos(angle);
         const ny = distance > .01 ? dy / distance : Math.sin(angle);
         const variation = .38 + ((index * .75487766625) % 1) * .96;
-        const force = (1 - distance / radius) ** 2 * (glyph.depths[index] ? 50 : 35) * variation;
-        const x = originalX + nx * force * .38 + Math.cos(angle) * force * .82;
-        const y = originalY + ny * force * .38 + Math.sin(angle) * force * .82;
+        const force = (1 - distance / reach) ** 1.35 * (glyph.depths[index] ? 132 : 108) * variation;
+        const swirl = (index % 2 ? 1 : -1) * force * .19;
+        const x = originalX + nx * force + -ny * swirl;
+        const y = originalY + ny * force + nx * swirl;
         const size = glyph.sizes[index] * (1 + glyph.positions[index * 3 + 2] / 350);
+        const cover = size * .7 + .65;
+        erased.rect(originalX - cover, originalY - cover, cover * 2, cover * 2);
         const path = paths[glyph.tones[index]];
         if (glyph.facets[index] === 1) {
           path.moveTo(x, y - size * .65);
@@ -830,6 +829,10 @@ export class DenomMatter {
         } else path.rect(x - size * .5, y - size * .5, size, size);
       }
     }
+    context.globalCompositeOperation = 'destination-out';
+    context.globalAlpha = 1;
+    context.fill(erased);
+    context.globalCompositeOperation = 'source-over';
     const colors = ['#366986', '#5597b9', '#77b4d1', '#cbeafa', '#f0fcff'];
     const opacity = [.58, .66, .72, .82, .94];
     for (let tone = 0; tone < paths.length; tone += 1) {
@@ -963,13 +966,14 @@ export class DenomMatter {
         const dx = x - this.pointer.x;
         const dy = y - this.pointer.y;
         const distance2 = dx * dx + dy * dy;
-        const radius = this.mobile ? 115 : 170;
+        const radius = (this.mobile ? 115 : 170) * (.74 + fract(seed * 13.37) * .38);
         if (distance2 < radius * radius) {
           const distance = Math.sqrt(distance2) || 1;
-          proximity = (1 - distance / radius) ** 2 * (1 - transition);
-          const offset = proximity * 36 * (.5 + seed * .9);
-          x += dx / distance * offset * .38 + cosine * offset * .82;
-          y += dy / distance * offset * .38 + sine * offset * .82;
+          proximity = (1 - distance / radius) ** 1.35 * (1 - transition);
+          const offset = proximity * 108 * (.6 + seed * .8);
+          const swirl = (index % 2 ? 1 : -1) * offset * .16;
+          x += dx / distance * offset - dy / distance * swirl;
+          y += dy / distance * offset + dx / distance * swirl;
         }
       }
 
