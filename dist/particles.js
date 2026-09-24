@@ -126,7 +126,7 @@ export class DenomMatter {
     this.radius = new Float32Array(this.count);
     this.tint = new Uint8Array(this.count);
     this.variant = new Uint8Array(this.count);
-    this.detailCount = innerWidth < 680 ? 6000 : innerWidth < 1100 ? 8000 : 11000;
+    this.detailCount = innerWidth < 680 ? 4600 : innerWidth < 1100 ? 6500 : 8500;
     this.detailPointA = new Float32Array(3);
     this.detailPointB = new Float32Array(3);
     this.detailCos = new Float32Array(this.detailCount);
@@ -197,6 +197,7 @@ export class DenomMatter {
     this.height = innerHeight;
     this.mobile = this.width < 680;
     const dpr = Math.min(devicePixelRatio || 1, this.mobile ? 1.1 : 1.25);
+    this.pixelRatio = dpr;
     this.canvas.width = Math.round(this.width * dpr);
     this.canvas.height = Math.round(this.height * dpr);
     this.canvas.style.width = `${this.width}px`;
@@ -340,6 +341,14 @@ export class DenomMatter {
 
   buildHeroDust() {
     const frame = this.frameFor(0);
+    // The dense lettering is rendered into a reusable layer at a measured
+    // cadence; scroll and the lighter background still paint every frame.
+    if (!this.heroDustCanvas) this.heroDustCanvas = document.createElement('canvas');
+    this.heroDustCanvas.width = this.canvas.width;
+    this.heroDustCanvas.height = this.canvas.height;
+    this.heroDustContext = this.heroDustCanvas.getContext('2d', { alpha: true });
+    this.heroDustContext.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
+    this.heroDustPaintedAt = -Infinity;
     this.heroDust = this.heroGlyphs.map((glyph, glyphIndex) => {
       const mask = this.textPoints(glyph.value, glyph.size, glyph.weight);
       const scale = glyph.width * frame.unit / mask.halfWidth;
@@ -358,7 +367,7 @@ export class DenomMatter {
         const driftY = ((index * 0.56984029099) % 1 - .5) * 1.7;
         positions[index * 3] = (point[0] - mask.centerX) * scale + driftX;
         positions[index * 3 + 1] = (point[1] - mask.centerY) * scale + driftY;
-        positions[index * 3 + 2] = [-35, -22, -8, 6, 20][layer];
+        positions[index * 3 + 2] = [-85, -51, -17, 18, 52][layer];
         depths[index] = rear ? 1 : 0;
         const shimmer = (index * .75487766625) % 1;
         const light = shimmer * .55 - (point[0] - mask.centerX) / mask.halfWidth * .18
@@ -686,10 +695,10 @@ export class DenomMatter {
     context.globalAlpha = 1;
   }
 
-  drawHeroDust(context, time, alpha) {
+  drawHeroDust(context, time) {
     const paths = Array.from({ length: 5 }, () => new Path2D());
-    const yaw = .11 + Math.sin(time * .00015) * .025;
-    const pitch = -.06 + Math.sin(time * .00012) * .018;
+    const yaw = .17 + Math.sin(time * .00015) * .035;
+    const pitch = -.095 + Math.sin(time * .00012) * .023;
     const cy = Math.cos(yaw);
     const sy = Math.sin(yaw);
     const cp = Math.cos(pitch);
@@ -748,10 +757,21 @@ export class DenomMatter {
     const colors = ['#366986', '#5597b9', '#77b4d1', '#cbeafa', '#f0fcff'];
     const opacity = [.58, .66, .72, .82, .94];
     for (let tone = 0; tone < paths.length; tone += 1) {
-      context.globalAlpha = alpha * opacity[tone];
+      context.globalAlpha = opacity[tone];
       context.fillStyle = colors[tone];
       context.fill(paths[tone]);
     }
+    context.globalAlpha = 1;
+  }
+
+  paintHeroDust(context, time, alpha) {
+    if (time - this.heroDustPaintedAt >= 78) {
+      this.heroDustContext.clearRect(0, 0, this.width, this.height);
+      this.drawHeroDust(this.heroDustContext, time);
+      this.heroDustPaintedAt = time;
+    }
+    context.globalAlpha = alpha;
+    context.drawImage(this.heroDustCanvas, 0, 0, this.width, this.height);
     context.globalAlpha = 1;
   }
 
@@ -807,7 +827,7 @@ export class DenomMatter {
       const elapsed = time - this.birth;
       const cohesion = 1 - smooth(rawTransition / .075);
       const assembled = this.reduced ? 1 : softer(clamp((elapsed - 4600) / 2800));
-      if (assembled > 0) this.drawHeroDust(context, time, cohesion * assembled);
+      if (assembled > 0) this.paintHeroDust(context, time, cohesion * assembled);
       context.globalAlpha = 1;
     }
 
