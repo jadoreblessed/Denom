@@ -377,7 +377,15 @@ export class DenomMatter {
         depthPixels.data[pixel + 3] = Math.min(145, pixels.data[pixel + 3]);
       }
       depthContext.putImageData(depthPixels, 0, 0);
-      return { canvas, depthCanvas, x: frame.x + glyph.x * frame.unit - width / 2, y: frame.y + glyph.y * frame.unit - height / 2, index: glyphIndex };
+      const depthComposite = document.createElement('canvas');
+      depthComposite.width = width + 12;
+      depthComposite.height = height + 10;
+      const compositeContext = depthComposite.getContext('2d');
+      compositeContext.globalAlpha = .11;
+      for (let layer = 3; layer >= 1; layer -= 1) {
+        compositeContext.drawImage(depthCanvas, layer * 2.8, layer * 2.1);
+      }
+      return { canvas, depthComposite, x: frame.x + glyph.x * frame.unit - width / 2, y: frame.y + glyph.y * frame.unit - height / 2, index: glyphIndex };
     });
   }
 
@@ -692,48 +700,32 @@ export class DenomMatter {
     context.globalAlpha = alpha;
     const px = this.pointer.x;
     const py = this.pointer.y;
-    const radius = this.mobile ? 92 : 142;
+    const radius = this.mobile ? 115 : 170;
     if (!pointerStrength || px + radius < x || px - radius > x + canvas.width ||
         py + radius < y || py - radius > y + canvas.height) {
       context.drawImage(canvas, x, y);
       return;
     }
-    // Both the fine-grain face and its shadow move with the larger particles.
-    // Keep the warp local so hovering a letter never stretches the entire word.
-    context.save();
-    context.beginPath();
-    context.rect(0, 0, this.width, this.height);
-    context.arc(px, py, radius, 0, TAU, true);
-    context.clip('evenodd');
+    // A faint undisturbed texture keeps the letter readable at the center.
+    // Draw the entire warped texture with no circular clip or hard boundary.
+    context.globalAlpha = alpha * .42;
     context.drawImage(canvas, x, y);
-    context.restore();
-    context.save();
-    context.beginPath();
-    context.arc(px, py, radius + 5, 0, TAU);
-    context.clip();
-    context.globalAlpha = alpha * .62;
-    context.drawImage(canvas, x, y);
-    context.globalAlpha = alpha * .48;
+    context.globalAlpha = alpha * .58;
     const tile = 22;
-    const x0 = Math.max(0, Math.floor((px - radius - x) / tile) * tile);
-    const y0 = Math.max(0, Math.floor((py - radius - y) / tile) * tile);
-    const x1 = Math.min(canvas.width, px + radius - x + tile);
-    const y1 = Math.min(canvas.height, py + radius - y + tile);
-    for (let sy = y0; sy < y1; sy += tile) {
-      for (let sx = x0; sx < x1; sx += tile) {
+    for (let sy = 0; sy < canvas.height; sy += tile) {
+      for (let sx = 0; sx < canvas.width; sx += tile) {
         const cx = x + sx + tile * .5;
         const cy = y + sy + tile * .5;
         const dx = cx - px;
         const dy = cy - py;
         const distance = Math.hypot(dx, dy) || 1;
-        const pull = Math.max(0, 1 - distance / radius) ** 2 * pointerStrength * 14;
+        const pull = Math.max(0, 1 - distance / radius) ** 2 * pointerStrength * 36;
         const width = Math.min(tile, canvas.width - sx);
         const height = Math.min(tile, canvas.height - sy);
         context.drawImage(canvas, sx, sy, width, height,
           x + sx + dx / distance * pull, y + sy + dy / distance * pull, width + .5, height + .5);
       }
     }
-    context.restore();
   }
 
   render(time) {
@@ -781,10 +773,8 @@ export class DenomMatter {
         const breath = Math.sin(time * .00038 + glyph.index * 1.8) * .7;
         if (assembled <= 0) return;
         // All letters gain their depth at the same pace as the bright grains.
-        for (let layer = 3; layer >= 1; layer -= 1) {
-          this.drawHeroGrain(context, glyph.depthCanvas, glyph.x + breath + layer * 2.8,
-            glyph.y - breath * .5 + layer * 2.1, cohesion * assembled * .11, pointerStrength);
-        }
+        this.drawHeroGrain(context, glyph.depthComposite, glyph.x + breath,
+          glyph.y - breath * .5, cohesion * assembled, pointerStrength);
         this.drawHeroGrain(context, glyph.canvas, glyph.x + breath, glyph.y - breath * .5,
           cohesion * assembled * .74, pointerStrength);
       });
@@ -853,18 +843,18 @@ export class DenomMatter {
         const dx = x - this.pointer.x;
         const dy = y - this.pointer.y;
         const distance2 = dx * dx + dy * dy;
-        const radius = this.mobile ? 92 : 142;
+        const radius = this.mobile ? 115 : 170;
         if (distance2 < radius * radius) {
           const distance = Math.sqrt(distance2) || 1;
           proximity = (1 - distance / radius) ** 2 * (1 - transition);
-          const offset = proximity * 14;
+          const offset = proximity * 36;
           x += dx / distance * offset;
           y += dy / distance * offset;
         }
       }
 
       const depthScale = scene === 0 ? 0.94 + depthLight * 0.28 : 0.74 + depthLight * 0.7;
-      const particleRadius = this.radius[index] * depthScale * (scene === 0 ? 1.72 : 1.68) * (1 - flight * 0.1) * (1 + proximity * .24);
+      const particleRadius = this.radius[index] * depthScale * (scene === 0 ? 1.72 : 1.68) * (1 - flight * 0.1) * (1 + proximity * .06);
       const twinkle = flight > .05 && index % 17 === 0 ? .8 + .2 * Math.sin(time * .0028 + angle * 4) : scene === 0 && rawTransition === 0 && index % 13 === 0 ? .9 + .1 * Math.sin(time * .00075 + angle * 4) : 1;
       const brightFleck = index % 31 === 0;
       const heroAlpha = (0.59 + seed * 0.1 + depthLight * 0.09) * (scene === 0 && rawTransition === 0 ? particleIntro : 1) * twinkle;
