@@ -390,12 +390,20 @@ export class DenomMatter {
   }
 
   fillCurrencies(output, light, count, random) {
-    const glyphs = [
-      { symbol: '€', x: -.26, y: -.17, z: -.045, width: .115, tilt: -.23 },
-      { symbol: '$', x: .25, y: -.17, z: .095, width: .133, tilt: .17 },
-      { symbol: '¥', x: -.22, y: .19, z: .085, width: .114, tilt: -.14 },
-      { symbol: '£', x: .26, y: .19, z: -.065, width: .115, tilt: .23 }
-    ].map(glyph => ({ ...glyph, mask: this.textPoints(glyph.symbol, 420, 700) }));
+    const positions = this.width < 900
+      ? [
+          { symbol: '€', x: -.17, y: -.19, z: -.045, width: .092, tilt: -.13 },
+          { symbol: '$', x: .18, y: -.18, z: .095, width: .097, tilt: .11 },
+          { symbol: '¥', x: -.16, y: .2, z: .085, width: .09, tilt: -.09 },
+          { symbol: '£', x: .18, y: .2, z: -.065, width: .09, tilt: .14 }
+        ]
+      : [
+          { symbol: '€', x: -.26, y: -.17, z: -.045, width: .115, tilt: -.23 },
+          { symbol: '$', x: .25, y: -.17, z: .095, width: .133, tilt: .17 },
+          { symbol: '¥', x: -.22, y: .19, z: .085, width: .114, tilt: -.14 },
+          { symbol: '£', x: .26, y: .19, z: -.065, width: .115, tilt: .23 }
+        ];
+    const glyphs = positions.map(glyph => ({ ...glyph, mask: this.textPoints(glyph.symbol, 420, 700) }));
     for (let index = 0; index < count; index += 1) {
       const cursor = index * 3;
       const glyph = glyphs[index % glyphs.length];
@@ -489,9 +497,9 @@ export class DenomMatter {
   }
 
   frameFor(scene) {
-    const desktop = [[0.5, 0.45, 0.88], [0.67, 0.48, 0.77], [0.5, 0.55, 0.93], [0.5, 0.55, 0.69]];
-    const mobile = [[0.5, 0.46, 0.92], [0.52, 0.55, 0.84], [0.5, 0.61, 0.88], [0.5, 0.58, 0.78]];
-    const frame = (this.mobile ? mobile : desktop)[scene];
+    const desktop = [[0.5, 0.45, 0.88], [0.67, 0.48, 0.77], [0.32, 0.54, 0.82], [0.5, 0.55, 0.69]];
+    const mobile = [[0.5, 0.46, 0.92], [0.52, 0.55, 0.84], [0.34, 0.57, 0.93], [0.5, 0.58, 0.78]];
+    const frame = (scene === 2 && this.width < 900 ? mobile : this.mobile ? mobile : desktop)[scene];
     const unit = Math.min(this.width * frame[2], this.height * (scene === 0 ? 1.58 : scene === 2 ? .82 : scene === 3 ? .72 : 1.18));
     return { x: this.width * frame[0], y: this.height * frame[1], unit };
   }
@@ -512,6 +520,7 @@ export class DenomMatter {
       z = Math.sin(time * .000043) * .09;
     }
     return { cy: Math.cos(y), sy: Math.sin(y), cx: Math.cos(x), sx: Math.sin(x), cz: Math.cos(z), sz: Math.sin(z),
+      currency: scene === 2, tide: time * .00039,
       living: scene === 3, pulse: Math.sin(time * .00026), sway: Math.sin(time * .00019),
       cageCos: Math.cos(time * .000048), cageSin: Math.sin(time * .000048) };
   }
@@ -520,6 +529,11 @@ export class DenomMatter {
     let x = shape[cursor];
     let y = shape[cursor + 1];
     let z = shape[cursor + 2];
+    if (rotation.currency) {
+      // A slow current moves each cast letter as a material surface.
+      y += .006 * Math.sin(rotation.tide + x * 12);
+      z += .008 * Math.cos(rotation.tide + y * 9);
+    }
     if (rotation.living) {
       if (cursor < shape.length * .69) {
         const breathe = 1 + .052 * rotation.pulse * (1 - Math.abs(y) * 1.7);
@@ -645,6 +659,27 @@ export class DenomMatter {
     context.globalAlpha = 1;
   }
 
+  drawCurrencyCurrents(time, frame, alpha) {
+    if (alpha < .01) return;
+    const context = this.context;
+    const compact = this.width < 900;
+    const amount = compact ? 70 : 120;
+    const radiusX = compact ? .29 : .44;
+    const radiusY = compact ? .34 : .41;
+    context.globalCompositeOperation = 'screen';
+    for (let index = 0; index < amount; index += 1) {
+      const lane = index % 3;
+      const angle = TAU * fract(index * .61803398875 + time * (lane === 1 ? -.0000024 : .000003));
+      const depth = Math.sin(angle + lane * .9);
+      const x = frame.x + frame.unit * (Math.cos(angle) * radiusX + .012 * Math.sin(2 * angle + lane));
+      const y = frame.y + frame.unit * (Math.sin(angle) * radiusY + .012 * Math.cos(3 * angle - lane));
+      const size = 1.9 + (index % 17 === 0 ? 2.1 : .9 * (depth + 1));
+      context.globalAlpha = alpha * (index % 17 === 0 ? .28 : .10 + .055 * depth);
+      context.drawImage(this.sprites[((index + lane) % 5) * 2], x - size / 2, y - size / 2, size, size);
+    }
+    context.globalAlpha = 1;
+  }
+
   drawAura(frame, alpha, size = 0.42) {
     const context = this.context;
     const radius = Math.min(this.width, this.height) * size;
@@ -683,6 +718,10 @@ export class DenomMatter {
     this.drawAura({ x: mix(fromFrame.x, toFrame.x, transition), y: mix(fromFrame.y, toFrame.y, transition) }, 1 - flight * 0.65, scene === 0 ? 0.48 : 0.39);
     if (scene === 0) this.drawHeroStars(time, this.local);
     this.drawAtmosphere(time, scene, this.local, flight);
+    if (scene === 1 || scene === 2) {
+      this.drawCurrencyCurrents(time, scene === 1 ? toFrame : fromFrame,
+        scene === 1 ? smooth((transition - .64) / .3) : 1 - smooth((transition - .7) / .28));
+    }
     context.globalCompositeOperation = 'screen';
 
     if (scene === 0) {

@@ -236,6 +236,41 @@ body[data-scene="0"] .ambient::before { opacity: .55; }
 .copy-left { left: var(--pad); bottom: 9vh; }
 .copy-right { right: var(--pad); bottom: 11vh; text-align: right; }
 .curve-scene .copy-right { bottom: 5vh; }
+.curve-scene .scene-inner::before {
+  content: "";
+  position: absolute;
+  inset: 15vh auto auto -8vw;
+  width: min(82vw, 940px);
+  height: 73vh;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 46% 52%, rgba(87, 185, 227, .13), rgba(70, 148, 205, .045) 46%, transparent 72%);
+  pointer-events: none;
+  animation: currency-field-breathe 15s ease-in-out infinite alternate;
+}
+.currency-legend {
+  position: absolute;
+  z-index: 4;
+  left: var(--pad);
+  color: #a8c0ce;
+  font-size: .69rem;
+  letter-spacing: .21em;
+  white-space: nowrap;
+}
+.currency-legend-top { top: 25vh; }
+.currency-legend-bottom { bottom: 8vh; }
+.currency-legend i {
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  margin: 0 10px 2px;
+  border-radius: 50%;
+  background: var(--azure);
+  box-shadow: 0 0 12px var(--azure);
+  animation: currency-beacon 4s ease-in-out infinite;
+}
+.currency-legend.motion-detail { transform: translate3d(0, var(--motion-y, 24px), 0); }
+@keyframes currency-field-breathe { to { opacity: .62; transform: translate3d(2vw, -1vh, 0) scale(1.07); } }
+@keyframes currency-beacon { 50% { opacity: .35; box-shadow: 0 0 3px var(--azure); } }
 .copy-final-left { left: var(--pad); top: 51%; width: min(285px, 22vw); }
 .copy-final-right { right: var(--pad); top: 51%; width: min(285px, 22vw); text-align: right; }
 
@@ -627,6 +662,10 @@ dialog .primary-action { width: max-content; margin-top: 24px; }
   .scene-copy { width: 82vw; font-size: 1.03rem; }
   .copy-left, .copy-right { left: 20px; right: auto; bottom: 9vh; text-align: left; }
   .curve-scene .copy-right { bottom: 6vh; }
+  .curve-scene .scene-inner::before { left: -25vw; top: 30vh; width: 92vw; height: 47vh; }
+  .currency-legend { left: 20px; font-size: .56rem; letter-spacing: .16em; }
+  .currency-legend-top { top: 35vh; }
+  .currency-legend-bottom { bottom: 19vh; }
   .copy-final-left { left: 20px; top: auto; bottom: 19vh; width: 82vw; }.copy-final-right { display: none; }
   .hero-action { top: auto; bottom: 14vh; width: auto; min-width: 0; padding: 9px 11px; transform: none; }
   .ca-action { left: 20px; }.social-action { right: 20px; }

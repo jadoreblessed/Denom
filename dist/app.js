@@ -56,7 +56,7 @@ function splitMotionWords(element) {
 scenes.forEach((scene, index) => {
   scene.querySelectorAll('.scene-title,.scene-statement').forEach(splitMotionWords);
   if (index > 0) {
-    scene.querySelectorAll('.scene-copy,.unit-index,.enter-app,.final-signature').forEach(element => {
+    scene.querySelectorAll('.scene-copy,.unit-index,.enter-app,.final-signature,.currency-legend').forEach(element => {
       element.classList.add('motion-detail');
     });
   }
