@@ -55,68 +55,72 @@ function fillKnot(points, light, count, random) {
 }
 
 function fillCandles(points, light, count, random) {
-  const closes = [-.04,.015,-.008,.066,.112,.075,.155,.202,.146,.118,.172,.225,.19,.252,.218,.284];
+  // Open and close are intentionally independent. The bodies form a market
+  // rhythm with actual reversals, rather than a row of ascending steps.
+  const bars = [
+    [-.09,-.005],[-.018,.078],[.09,.015],[.024,.15],[.138,.045],
+    [.055,.105],[.12,-.025],[-.018,.048],[.034,.168],[.165,.072],
+    [.08,.205],[.198,.105]
+  ];
   for (let index = 0; index < count; index += 1) {
     const cursor = index * 3;
-    const lane = index % closes.length;
-    const x = -.37 + lane / (closes.length - 1) * .74;
-    const close = closes[lane];
-    const open = lane ? closes[lane - 1] : -.09;
+    const lane = index % bars.length;
+    const x = -.4 + lane / (bars.length - 1) * .8;
+    const [open, close] = bars[lane];
     const low = Math.min(open, close);
     const high = Math.max(open, close);
-    const height = Math.max(.043, high - low);
-    const wick = index % 9 === 0;
+    const height = high - low;
+    const wick = index % 7 === 0;
     if (wick) {
-      points[cursor] = x + (random() - .5) * .003;
-      points[cursor + 1] = low - .03 + random() * (height + .075);
-      points[cursor + 2] = (random() - .5) * .006;
-      light[index] = 218;
+      points[cursor] = x + (random() - .5) * .004;
+      points[cursor + 1] = low - .042 + random() * (height + .084);
+      points[cursor + 2] = .067 + (random() - .5) * .008;
+      light[index] = 205;
       continue;
     }
     const face = index % 6;
     const across = random() - .5;
     const depth = random() - .5;
-    points[cursor] = x + (face === 2 ? -.018 : face === 3 ? .018 : across * .036);
+    points[cursor] = x + (face === 2 ? -.022 : face === 3 ? .022 : across * .044);
     points[cursor + 1] = low + (face === 4 ? height : face === 5 ? 0 : random() * height);
-    points[cursor + 2] = face === 0 ? .066 : face === 1 ? -.066 : depth * .132;
-    light[index] = [237,78,130,183,252,105][face];
+    points[cursor + 2] = face === 0 ? .075 : face === 1 ? -.075 : depth * .15;
+    const falling = close < open;
+    light[index] = (falling ? [177,65,95,132,207,92] : [240,89,139,193,252,110])[face];
   }
 }
 
 function fillPortal(points, light, count, random) {
-  const leavesEnd = Math.floor(count * .79);
-  const rimEnd = Math.floor(count * .95);
+  // A single deep, faceted market gate with an open center. Its continuous
+  // shell reads as one sculptural object, with no blades or radial spokes.
+  const shellEnd = Math.floor(count * .94);
   for (let index = 0; index < count; index += 1) {
     const cursor = index * 3;
-    if (index < leavesEnd) {
-      const leaf = index % 7;
-      const u = random();
-      const v = random();
-      const angle = leaf * TAU / 7 + .055 + u * .69 + .11 * v;
-      const radius = .12 + (.19 + .022 * Math.sin(u * Math.PI)) * v;
-      const back = index % 7 === 0;
-      const crown = Math.sin(u * Math.PI) * Math.sin(v * Math.PI);
-      points[cursor] = Math.cos(angle) * radius;
-      points[cursor + 1] = Math.sin(angle) * radius * .91;
-      points[cursor + 2] = -.09 + .17 * crown + .07 * (v - .5) + leaf * .009 + (back ? -.12 : 0);
-      light[index] = Math.round(255 * clamp((back ? .16 : .32) + .4 * crown + .2 * (1 - u) - .13 * Math.sin(angle) + (leaf % 2 ? -.09 : .055)));
-    } else if (index < rimEnd) {
-      const angle = TAU * fract(index * .61803398875);
-      const cross = TAU * fract(index * .75487766625);
-      const surface = Math.cos(cross);
-      points[cursor] = (.327 + .033 * surface) * Math.cos(angle);
-      points[cursor + 1] = (.315 + .031 * surface) * Math.sin(angle);
-      points[cursor + 2] = -.055 + .037 * Math.sin(cross);
-      light[index] = Math.round(255 * clamp(.43 + .3 * Math.sin(cross) - .22 * Math.sin(angle)));
+    if (index < shellEnd) {
+      const theta = TAU * fract(index * .61803398875 + random() * .003);
+      const facet = (theta + Math.PI / 6) % (Math.PI / 3) - Math.PI / 6;
+      const hex = 1 / Math.cos(facet);
+      const face = index % 12;
+      const radial = face === 8 ? .35 : face === 9 ? .18 : .18 + random() * .17;
+      const radius = radial * hex;
+      const bevel = Math.min(1, (radial - .18) / .025, (.35 - radial) / .025);
+      const front = .11 + .065 * Math.sin(theta + .45) + .022 * Math.max(0, bevel);
+      const rear = -.13 + .027 * Math.sin(theta + .45);
+      const z = face < 7 || face === 8 || face === 9 ? front : face === 7 ? rear : rear + random() * (front - rear);
+      const tilt = .18 * Math.sin(theta) + .09 * Math.cos(2 * theta);
+      points[cursor] = Math.cos(theta) * radius * .97;
+      points[cursor + 1] = Math.sin(theta) * radius * .96;
+      points[cursor + 2] = z + tilt * .13;
+      const lit = face < 7 ? .57 : face === 8 || face === 9 ? .7 : face === 7 ? .17 : .32;
+      light[index] = Math.round(255 * clamp(lit - .15 * Math.sin(theta) + .1 * Math.cos(theta) + .09 * bevel));
     } else {
-      // A suspended cut seed gives the aperture a near and far plane.
+      // A small enclosed ember is visible through the gate's empty center.
       const theta = TAU * random();
       const vertical = random() * 2 - 1;
       const r = Math.sqrt(1 - vertical * vertical);
-      points[cursor] = Math.cos(theta) * r * .062;
-      points[cursor + 1] = vertical * .095;
-      points[cursor + 2] = .12 + Math.sin(theta) * r * .055;
-      light[index] = Math.round(255 * clamp(.48 + vertical * -.2 + Math.sin(theta) * .22));
+      points[cursor] = Math.cos(theta) * r * .055;
+      points[cursor + 1] = vertical * .074;
+      points[cursor + 2] = -.07 + Math.sin(theta) * r * .045;
+      light[index] = Math.round(255 * clamp(.48 + vertical * -.2 + Math.sin(theta) * .19));
     }
   }
 }
@@ -341,6 +345,18 @@ export class DenomMatter {
       { value: 'X', start: contractEnd, end: this.count, x: 0.42, y: sideY, width: 0.058, size: 410, weight: 600, dust: 7500 }
     ];
     this.heroGlyphs.forEach(glyph => this.writeText(output, glyph.start, glyph.end, glyph.value, glyph));
+    const light = new Uint8Array(this.count);
+    for (let index = 0; index < this.count; index += 1) {
+      const cursor = index * 3;
+      const face = index % 5;
+      // Separate near and far material, including a shallow chamfer, so the
+      // letters retain thickness during rotation and when they break apart.
+      output[cursor + 2] = face < 3 ? .093 : face === 3 ? -.078 : -.015;
+      output[cursor] += face === 3 ? .009 : face === 4 ? .004 : 0;
+      output[cursor + 1] += face === 3 ? .012 : face === 4 ? .006 : 0;
+      light[index] = face < 3 ? 223 : face === 3 ? 87 : 141;
+    }
+    this.mainLight[0] = light;
     return output;
   }
 
@@ -373,7 +389,20 @@ export class DenomMatter {
         pixels.data[offset + 3] = shimmer > .86 ? 210 : 132;
       }
       context.putImageData(pixels, 0, 0);
-      return { canvas, x: frame.x + glyph.x * frame.unit - width / 2, y: frame.y + glyph.y * frame.unit - height / 2, index: glyphIndex };
+      const depthCanvas = document.createElement('canvas');
+      depthCanvas.width = width;
+      depthCanvas.height = height;
+      const depthContext = depthCanvas.getContext('2d');
+      const depthPixels = depthContext.createImageData(width, height);
+      for (let pixel = 0; pixel < pixels.data.length; pixel += 4) {
+        if (!pixels.data[pixel + 3]) continue;
+        depthPixels.data[pixel] = 45;
+        depthPixels.data[pixel + 1] = 105;
+        depthPixels.data[pixel + 2] = 169;
+        depthPixels.data[pixel + 3] = Math.min(145, pixels.data[pixel + 3]);
+      }
+      depthContext.putImageData(depthPixels, 0, 0);
+      return { canvas, depthCanvas, x: frame.x + glyph.x * frame.unit - width / 2, y: frame.y + glyph.y * frame.unit - height / 2, index: glyphIndex };
     });
   }
 
@@ -407,6 +436,23 @@ export class DenomMatter {
       state = (1664525 * state + 1013904223) >>> 0;
       return state / 4294967296;
     };
+    const hero = new Float32Array(this.detailCount * 3);
+    const heroLight = new Uint8Array(this.detailCount);
+    this.heroGlyphs.forEach((glyph, glyphIndex) => {
+      const mask = this.textPoints(glyph.value, glyph.size, glyph.weight);
+      const start = glyphIndex === 0 ? 0 : glyphIndex === 1 ? Math.floor(this.detailCount * .84) : Math.floor(this.detailCount * .94);
+      const end = glyphIndex === 0 ? Math.floor(this.detailCount * .84) : glyphIndex === 1 ? Math.floor(this.detailCount * .94) : this.detailCount;
+      for (let index = start; index < end; index += 1) {
+        const selected = Math.min(mask.points.length - 1, Math.floor(fract((index - start + .5) * .61803398875) * mask.points.length));
+        const point = mask.points[selected];
+        const cursor = index * 3;
+        const layer = index % 5;
+        hero[cursor] = glyph.x + (point[0] - mask.centerX) / mask.halfWidth * glyph.width + (layer === 4 ? .008 : 0);
+        hero[cursor + 1] = glyph.y + (point[1] - mask.centerY) / mask.halfWidth * glyph.width + (layer === 4 ? .01 : 0);
+        hero[cursor + 2] = layer < 3 ? .095 : layer === 3 ? -.08 : 0;
+        heroLight[index] = layer < 3 ? 195 : layer === 3 ? 78 : 126;
+      }
+    });
     const knot = new Float32Array(this.detailCount * 3);
     const candles = new Float32Array(this.detailCount * 3);
     const portal = new Float32Array(this.detailCount * 3);
@@ -416,8 +462,8 @@ export class DenomMatter {
     fillKnot(knot, knotLight, this.detailCount, random);
     fillCandles(candles, candleLight, this.detailCount, random);
     fillPortal(portal, portalLight, this.detailCount, random);
-    this.detailShapes = [null, knot, candles, portal];
-    this.detailLight = [null, knotLight, candleLight, portalLight];
+    this.detailShapes = [hero, knot, candles, portal];
+    this.detailLight = [heroLight, knotLight, candleLight, portalLight];
   }
 
   buildShapes() {
@@ -428,8 +474,8 @@ export class DenomMatter {
   }
 
   frameFor(scene) {
-    const desktop = [[0.5, 0.45, 0.88], [0.67, 0.48, 0.77], [0.68, 0.54, 0.72], [0.5, 0.53, 0.78]];
-    const mobile = [[0.5, 0.46, 0.92], [0.52, 0.55, 0.84], [0.5, 0.66, 0.75], [0.5, 0.57, 0.88]];
+    const desktop = [[0.5, 0.45, 0.88], [0.67, 0.48, 0.77], [0.68, 0.54, 0.72], [0.5, 0.55, 0.69]];
+    const mobile = [[0.5, 0.46, 0.92], [0.52, 0.55, 0.84], [0.5, 0.66, 0.75], [0.5, 0.58, 0.78]];
     const frame = (this.mobile ? mobile : desktop)[scene];
     const unit = Math.min(this.width * frame[2], this.height * (scene === 0 ? 1.58 : scene === 3 ? .88 : 1.18));
     return { x: this.width * frame[0], y: this.height * frame[1], unit };
@@ -446,8 +492,8 @@ export class DenomMatter {
       y = Math.sin(time * 0.00008) * 0.3;
       x = -0.24 + Math.sin(time * 0.000055) * 0.055;
     } else if (scene === 3) {
-      y = Math.sin(time * .00009) * .32;
-      x = -0.18 + Math.sin(time * 0.000064) * 0.09;
+      y = .36 + Math.sin(time * .00009) * .17;
+      x = -0.27 + Math.sin(time * 0.000064) * 0.07;
       z = time * .000013;
     }
     return { cy: Math.cos(y), sy: Math.sin(y), cx: Math.cos(x), sx: Math.sin(x), cz: Math.cos(z), sz: Math.sin(z) };
@@ -610,8 +656,11 @@ export class DenomMatter {
     const to = this.shapes[next];
     const fromFrame = this.frameFor(scene);
     const toFrame = this.frameFor(next);
-    const rawTransition = next === scene ? 0 : clamp((this.local - 0.4) / 0.6);
-    const transition = softer(rawTransition);
+    // Let the material travel for most of the panel, with only the endpoints
+    // softened. The former quintic easing hid the journey in a short middle beat.
+    const rawTransition = next === scene ? 0 : clamp((this.local - .1) / .86);
+    const transition = rawTransition < .08 ? .08 * smooth(rawTransition / .08)
+      : rawTransition > .92 ? .92 + .08 * smooth((rawTransition - .92) / .08) : rawTransition;
     const flight = Math.sin(transition * Math.PI);
     const fromRotation = this.rotationFor(scene, time);
     const toRotation = rawTransition > 0 ? this.rotationFor(next, time) : fromRotation;
@@ -633,7 +682,7 @@ export class DenomMatter {
 
     if (scene === 0) {
       const elapsed = time - this.birth;
-      const cohesion = 1 - smooth(rawTransition / .28);
+      const cohesion = 1 - smooth(rawTransition / .38);
       context.globalAlpha = cohesion * 0.8;
       if (this.pointer.active && rawTransition < .45) {
         // The fine grain must leave with the large particles under the cursor.
@@ -646,6 +695,16 @@ export class DenomMatter {
       }
       this.heroDust.forEach(glyph => {
         const breath = Math.sin(time * 0.00068 + glyph.index * 1.8) * 0.7;
+        // Four shadow planes expose the extruded flank as dark blue grain.
+        // They share the mask but remain individual dots, never a solid font.
+        if (elapsed > 2900 || this.reduced) {
+          for (let layer = 4; layer >= 1; layer -= 1) {
+            context.globalAlpha = cohesion * .17;
+            context.drawImage(glyph.depthCanvas, glyph.x + breath + layer * 2.8,
+              glyph.y - breath * .5 + layer * 2.1);
+          }
+        }
+        context.globalAlpha = cohesion * .8;
         if (this.reduced || elapsed > 5900) {
           context.drawImage(glyph.canvas, glyph.x + breath, glyph.y - breath * 0.5);
           return;
@@ -672,7 +731,7 @@ export class DenomMatter {
       context.globalAlpha = 1;
     }
 
-    const objectMix = scene === 0 ? softer((transition - .38) / .62) : 1;
+    const objectMix = scene === 0 ? smooth((transition - .04) / .24) : 1;
     const fromLight = this.mainLight[scene];
     const toLight = this.mainLight[next];
     for (let index = 0; index < this.count; index += 1) {
@@ -761,13 +820,13 @@ export class DenomMatter {
     if (objectMix > 0) {
       context.globalCompositeOperation = 'source-over';
       const grainPaths = Array.from({ length: 5 }, () => new Path2D());
-      const detailScene = Math.max(1, scene);
-      const detailNext = Math.max(1, next);
+      const detailScene = scene;
+      const detailNext = next;
       const detailFrom = this.detailShapes[detailScene];
       const detailTo = this.detailShapes[detailNext];
       const lightFrom = this.detailLight[detailScene];
       const lightTo = this.detailLight[detailNext];
-      const detailFade = scene === 0 ? softer((transition - .28) / .6) : 1;
+      const detailFade = scene === 0 ? smooth(rawTransition / .18) : 1;
       const size = this.mobile ? 1.52 : 1.76;
       const a = this.detailPointA;
       const b = this.detailPointB;
@@ -776,7 +835,7 @@ export class DenomMatter {
         this.project(detailFrom, cursor, fromFrame, fromRotation, a);
         if (rawTransition > 0) this.project(detailTo, cursor, toFrame, toRotation, b);
         const target = rawTransition > 0 ? b : a;
-        const drift = flight * (19 + (index % 11) * 1.4);
+        const drift = flight * (48 + (index % 11) * 7);
         const x = mix(a[0], target[0], transition) + this.detailCos[index] * drift;
         const y = mix(a[1], target[1], transition) + this.detailSin[index] * drift * .72;
         const depth = mix(a[2], target[2], transition);

@@ -92,7 +92,7 @@ function paintScroll() {
     if (y >= metrics[index].top - 2) active = index;
   }
   const local = clamp((y - metrics[active].top) / metrics[active].travel);
-  const nextEnter = !reduced && active < scenes.length - 1 ? smooth((local - .66) / .26) : 0;
+  const nextEnter = !reduced && active < scenes.length - 1 ? smooth((local - .56) / .31) : 0;
   scenes.forEach((scene, index) => {
     const upcoming = index === active + 1;
     if (index !== active && !upcoming && scene.dataset.inactive === 'true') return;
@@ -101,7 +101,7 @@ function paintScroll() {
     const inner = scene.querySelector('.scene-inner');
     let opacity = 0;
     if (index === active) {
-      const exit = active === scenes.length - 1 ? 1 : 1 - smooth((local - 0.53) / 0.43);
+      const exit = active === scenes.length - 1 ? 1 : 1 - smooth((local - 0.43) / 0.28);
       opacity = exit;
     } else if (upcoming) {
       opacity = nextEnter;
@@ -111,7 +111,7 @@ function paintScroll() {
     inner.style.pointerEvents = opacity > 0.55 ? 'auto' : 'none';
 
     const enterBase = reduced ? 1 : index === active ? smooth((local + 0.06) / 0.15) : upcoming ? nextEnter : 0;
-    const leaveBase = reduced || index !== active || active === scenes.length - 1 ? 0 : smooth((local - 0.51) / 0.45);
+    const leaveBase = reduced || index !== active || active === scenes.length - 1 ? 0 : smooth((local - 0.43) / 0.28);
     const motion = landingMotion[index];
     motion.words.forEach((word, wordIndex) => {
       const stagger = Math.min(0.18, wordIndex * 0.022);
