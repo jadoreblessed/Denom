@@ -392,16 +392,16 @@ export class DenomMatter {
   fillCurrencies(output, light, count, random) {
     const positions = this.width < 900
       ? [
-          { symbol: '€', x: -.17, y: -.19, z: -.045, width: .092, tilt: -.13 },
-          { symbol: '$', x: .18, y: -.18, z: .095, width: .097, tilt: .11 },
-          { symbol: '¥', x: -.16, y: .2, z: .085, width: .09, tilt: -.09 },
-          { symbol: '£', x: .18, y: .2, z: -.065, width: .09, tilt: .14 }
+          { symbol: '€', x: -.17, y: -.22, z: -.045, width: .087, tilt: -.13 },
+          { symbol: '$', x: .18, y: -.21, z: .095, width: .09, tilt: .11 },
+          { symbol: '¥', x: -.16, y: .23, z: .085, width: .085, tilt: -.09 },
+          { symbol: '£', x: .18, y: .23, z: -.065, width: .085, tilt: .14 }
         ]
       : [
-          { symbol: '€', x: -.26, y: -.17, z: -.045, width: .115, tilt: -.23 },
-          { symbol: '$', x: .25, y: -.17, z: .095, width: .133, tilt: .17 },
-          { symbol: '¥', x: -.22, y: .19, z: .085, width: .114, tilt: -.14 },
-          { symbol: '£', x: .26, y: .19, z: -.065, width: .115, tilt: .23 }
+          { symbol: '€', x: -.26, y: -.23, z: -.045, width: .104, tilt: -.18 },
+          { symbol: '$', x: .25, y: -.23, z: .095, width: .112, tilt: .14 },
+          { symbol: '¥', x: -.22, y: .25, z: .085, width: .102, tilt: -.12 },
+          { symbol: '£', x: .26, y: .25, z: -.065, width: .103, tilt: .17 }
         ];
     const glyphs = positions.map(glyph => ({ ...glyph, mask: this.textPoints(glyph.symbol, 420, 700) }));
     for (let index = 0; index < count; index += 1) {
@@ -726,7 +726,7 @@ export class DenomMatter {
 
     if (scene === 0) {
       const elapsed = time - this.birth;
-      const cohesion = 1 - smooth(rawTransition / .38);
+      const cohesion = 1 - smooth(rawTransition / .075);
       context.globalAlpha = cohesion * 0.8;
       if (this.pointer.active && rawTransition < .45) {
         // The fine grain must leave with the large particles under the cursor.
@@ -734,14 +734,14 @@ export class DenomMatter {
         context.save();
         context.beginPath();
         context.rect(0, 0, this.width, this.height);
-        context.arc(this.pointer.x, this.pointer.y, this.mobile ? 56 : 88, 0, TAU, true);
+        context.arc(this.pointer.x, this.pointer.y, this.mobile ? 160 : 245, 0, TAU, true);
         context.clip('evenodd');
       }
       this.heroDust.forEach(glyph => {
         const breath = Math.sin(time * .00038 + glyph.index * 1.8) * .7;
         // Four shadow planes expose the extruded flank as dark blue grain.
         // They share the mask but remain individual dots, never a solid font.
-        if (elapsed > 3950 || this.reduced) {
+        if (elapsed > 5500 || this.reduced) {
           for (let layer = 4; layer >= 1; layer -= 1) {
             context.globalAlpha = cohesion * .17;
             context.drawImage(glyph.depthCanvas, glyph.x + breath + layer * 2.8,
@@ -749,7 +749,7 @@ export class DenomMatter {
           }
         }
         context.globalAlpha = cohesion * .8;
-        if (this.reduced || elapsed > 7900) {
+        if (this.reduced || elapsed > 9500) {
           context.drawImage(glyph.canvas, glyph.x + breath, glyph.y - breath * 0.5);
           return;
         }
@@ -762,7 +762,7 @@ export class DenomMatter {
           const to = Math.ceil((slice + 1) * sliceWidth);
           const width = to - from;
           const order = glyph.index === 0 ? slice / slices : (slices - slice - 1) / slices;
-          const arrival = softer((elapsed - 3850 - order * 1650) / 2200);
+          const arrival = softer((elapsed - 5500 - order * 1650) / 2200);
           if (arrival <= 0) continue;
           context.globalAlpha = cohesion * arrival * 0.8;
           const drift = (1 - arrival) * (order - 0.5) * 38;
