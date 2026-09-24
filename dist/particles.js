@@ -326,9 +326,9 @@ export class DenomMatter {
       const face = index % 5;
       // Separate near and far material, including a shallow chamfer, so the
       // letters retain thickness during rotation and when they break apart.
-      output[cursor + 2] = face < 3 ? .093 : face === 3 ? -.078 : -.015;
-      output[cursor] += face === 3 ? .009 : face === 4 ? .004 : 0;
-      output[cursor + 1] += face === 3 ? .012 : face === 4 ? .006 : 0;
+      output[cursor + 2] = face < 3 ? .026 : face === 3 ? -.026 : 0;
+      output[cursor] += face === 3 ? .002 : 0;
+      output[cursor + 1] += face === 3 ? .002 : 0;
       light[index] = face < 3 ? 223 : face === 3 ? 87 : 141;
     }
     this.mainLight[0] = light;
@@ -470,9 +470,9 @@ export class DenomMatter {
         const point = mask.points[selected];
         const cursor = index * 3;
         const layer = index % 5;
-        hero[cursor] = glyph.x + (point[0] - mask.centerX) / mask.halfWidth * glyph.width + (layer === 4 ? .008 : 0);
-        hero[cursor + 1] = glyph.y + (point[1] - mask.centerY) / mask.halfWidth * glyph.width + (layer === 4 ? .01 : 0);
-        hero[cursor + 2] = layer < 3 ? .095 : layer === 3 ? -.08 : 0;
+        hero[cursor] = glyph.x + (point[0] - mask.centerX) / mask.halfWidth * glyph.width + (layer === 3 ? .002 : 0);
+        hero[cursor + 1] = glyph.y + (point[1] - mask.centerY) / mask.halfWidth * glyph.width + (layer === 3 ? .002 : 0);
+        hero[cursor + 2] = layer < 3 ? .026 : layer === 3 ? -.026 : 0;
         heroLight[index] = layer < 3 ? 195 : layer === 3 ? 78 : 126;
       }
     });
@@ -688,6 +688,54 @@ export class DenomMatter {
     context.globalAlpha = 1;
   }
 
+  drawHeroGrain(context, canvas, x, y, alpha, pointerStrength) {
+    context.globalAlpha = alpha;
+    const px = this.pointer.x;
+    const py = this.pointer.y;
+    const radius = this.mobile ? 92 : 142;
+    if (!pointerStrength || px + radius < x || px - radius > x + canvas.width ||
+        py + radius < y || py - radius > y + canvas.height) {
+      context.drawImage(canvas, x, y);
+      return;
+    }
+    // Both the fine-grain face and its shadow move with the larger particles.
+    // Keep the warp local so hovering a letter never stretches the entire word.
+    context.save();
+    context.beginPath();
+    context.rect(0, 0, this.width, this.height);
+    context.arc(px, py, radius, 0, TAU, true);
+    context.clip('evenodd');
+    context.drawImage(canvas, x, y);
+    context.restore();
+    context.save();
+    context.beginPath();
+    context.arc(px, py, radius + 5, 0, TAU);
+    context.clip();
+    context.globalAlpha = alpha * .62;
+    context.drawImage(canvas, x, y);
+    context.globalAlpha = alpha * .48;
+    const tile = 22;
+    const x0 = Math.max(0, Math.floor((px - radius - x) / tile) * tile);
+    const y0 = Math.max(0, Math.floor((py - radius - y) / tile) * tile);
+    const x1 = Math.min(canvas.width, px + radius - x + tile);
+    const y1 = Math.min(canvas.height, py + radius - y + tile);
+    for (let sy = y0; sy < y1; sy += tile) {
+      for (let sx = x0; sx < x1; sx += tile) {
+        const cx = x + sx + tile * .5;
+        const cy = y + sy + tile * .5;
+        const dx = cx - px;
+        const dy = cy - py;
+        const distance = Math.hypot(dx, dy) || 1;
+        const pull = Math.max(0, 1 - distance / radius) ** 2 * pointerStrength * 14;
+        const width = Math.min(tile, canvas.width - sx);
+        const height = Math.min(tile, canvas.height - sy);
+        context.drawImage(canvas, sx, sy, width, height,
+          x + sx + dx / distance * pull, y + sy + dy / distance * pull, width + .5, height + .5);
+      }
+    }
+    context.restore();
+  }
+
   render(time) {
     const context = this.context;
     context.clearRect(0, 0, this.width, this.height);
@@ -728,17 +776,17 @@ export class DenomMatter {
       const elapsed = time - this.birth;
       const cohesion = 1 - smooth(rawTransition / .075);
       const assembled = this.reduced ? 1 : softer(clamp((elapsed - 4600) / 2800));
+      const pointerStrength = this.pointer.active && rawTransition === 0 && assembled > .98 ? 1 : 0;
       this.heroDust.forEach(glyph => {
         const breath = Math.sin(time * .00038 + glyph.index * 1.8) * .7;
         if (assembled <= 0) return;
         // All letters gain their depth at the same pace as the bright grains.
         for (let layer = 3; layer >= 1; layer -= 1) {
-          context.globalAlpha = cohesion * assembled * .11;
-          context.drawImage(glyph.depthCanvas, glyph.x + breath + layer * 2.8,
-            glyph.y - breath * .5 + layer * 2.1);
+          this.drawHeroGrain(context, glyph.depthCanvas, glyph.x + breath + layer * 2.8,
+            glyph.y - breath * .5 + layer * 2.1, cohesion * assembled * .11, pointerStrength);
         }
-        context.globalAlpha = cohesion * assembled * .74;
-        context.drawImage(glyph.canvas, glyph.x + breath, glyph.y - breath * .5);
+        this.drawHeroGrain(context, glyph.canvas, glyph.x + breath, glyph.y - breath * .5,
+          cohesion * assembled * .74, pointerStrength);
       });
       context.globalAlpha = 1;
     }
@@ -805,18 +853,18 @@ export class DenomMatter {
         const dx = x - this.pointer.x;
         const dy = y - this.pointer.y;
         const distance2 = dx * dx + dy * dy;
-        const radius = this.mobile ? 68 : 105;
+        const radius = this.mobile ? 92 : 142;
         if (distance2 < radius * radius) {
           const distance = Math.sqrt(distance2) || 1;
           proximity = (1 - distance / radius) ** 2 * (1 - transition);
-          const offset = proximity * 28;
+          const offset = proximity * 14;
           x += dx / distance * offset;
           y += dy / distance * offset;
         }
       }
 
       const depthScale = scene === 0 ? 0.94 + depthLight * 0.28 : 0.74 + depthLight * 0.7;
-      const particleRadius = this.radius[index] * depthScale * (scene === 0 ? 1.72 : 1.68) * (1 - flight * 0.1) * (1 + proximity * .07);
+      const particleRadius = this.radius[index] * depthScale * (scene === 0 ? 1.72 : 1.68) * (1 - flight * 0.1) * (1 + proximity * .24);
       const twinkle = flight > .05 && index % 17 === 0 ? .8 + .2 * Math.sin(time * .0028 + angle * 4) : scene === 0 && rawTransition === 0 && index % 13 === 0 ? .9 + .1 * Math.sin(time * .00075 + angle * 4) : 1;
       const brightFleck = index % 31 === 0;
       const heroAlpha = (0.59 + seed * 0.1 + depthLight * 0.09) * (scene === 0 && rawTransition === 0 ? particleIntro : 1) * twinkle;
