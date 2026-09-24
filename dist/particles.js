@@ -342,24 +342,30 @@ export class DenomMatter {
       const scale = glyph.width * frame.unit / mask.halfWidth;
       const points = mask.points;
       const count = Math.min(points.length, Math.round(glyph.dust * (this.mobile ? .19 : .42)));
-      const positions = new Float32Array(count * 2);
+      const positions = new Float32Array(count * 3);
       const sizes = new Float32Array(count);
       const tones = new Uint8Array(count);
       const depths = new Uint8Array(count);
+      const facets = new Uint8Array(count);
       for (let index = 0; index < count; index += 1) {
         const point = points[Math.floor(((index * 0.618033988749895) % 1) * points.length)];
         const layer = index % 5;
         const rear = layer < 2;
         const driftX = ((index * 0.75487766625) % 1 - .5) * 1.7;
         const driftY = ((index * 0.56984029099) % 1 - .5) * 1.7;
-        positions[index * 2] = frame.x + glyph.x * frame.unit + (point[0] - mask.centerX) * scale + driftX + (rear ? 5 + layer * 4 : 0);
-        positions[index * 2 + 1] = frame.y + glyph.y * frame.unit + (point[1] - mask.centerY) * scale + driftY + (rear ? 3 + layer * 2 : 0);
+        positions[index * 3] = (point[0] - mask.centerX) * scale + driftX;
+        positions[index * 3 + 1] = (point[1] - mask.centerY) * scale + driftY;
+        positions[index * 3 + 2] = [-35, -22, -8, 6, 20][layer];
         depths[index] = rear ? 1 : 0;
         const shimmer = (index * .75487766625) % 1;
-        tones[index] = rear ? (shimmer > .65 ? 1 : 0) : shimmer > .95 ? 4 : shimmer > .78 ? 3 : 2;
-        sizes[index] = (rear ? .9 : shimmer > .965 ? 3.2 : shimmer > .84 ? 2.25 : 1.35) * (this.mobile ? .9 : 1);
+        const light = shimmer * .55 - (point[0] - mask.centerX) / mask.halfWidth * .18
+          - (point[1] - mask.centerY) / mask.halfHeight * .27 + .4;
+        tones[index] = rear ? (light > .52 ? 1 : 0) : light > .94 ? 4 : light > .69 ? 3 : 2;
+        sizes[index] = (rear ? .9 : light > 1.04 ? 3.2 : light > .76 ? 2.25 : 1.35) * (this.mobile ? .9 : 1);
+        facets[index] = !rear && light > .74 ? (index % 3 === 0 ? 2 : 1) : 0;
       }
-      return { positions, sizes, tones, depths, count, index: glyphIndex };
+      return { positions, sizes, tones, depths, facets, count, index: glyphIndex,
+        centerX: frame.x + glyph.x * frame.unit, centerY: frame.y + glyph.y * frame.unit };
     });
   }
 
@@ -490,7 +496,10 @@ export class DenomMatter {
     let y = 0;
     let x = 0;
     let z = 0;
-    if (scene === 1) {
+    if (scene === 0) {
+      y = .11 + Math.sin(time * .00015) * .025;
+      x = -.06 + Math.sin(time * .00012) * .018;
+    } else if (scene === 1) {
       y = Math.sin(time * .000073) * .38;
       x = -.12 + Math.sin(time * .000052) * .09;
     } else if (scene === 2) {
@@ -672,6 +681,12 @@ export class DenomMatter {
 
   drawHeroDust(context, time, alpha) {
     const paths = Array.from({ length: 5 }, () => new Path2D());
+    const yaw = .11 + Math.sin(time * .00015) * .025;
+    const pitch = -.06 + Math.sin(time * .00012) * .018;
+    const cy = Math.cos(yaw);
+    const sy = Math.sin(yaw);
+    const cp = Math.cos(pitch);
+    const sp = Math.sin(pitch);
     const radius = this.mobile ? 112 : 170;
     const hovered = this.pointer.active && this.local < .12;
     const px = this.pointer.x;
@@ -679,9 +694,17 @@ export class DenomMatter {
     for (const glyph of this.heroDust) {
       const breath = Math.sin(time * .00038 + glyph.index * 1.8) * .6;
       for (let index = 0; index < glyph.count; index += 1) {
-        const offset = index * 2;
-        let x = glyph.positions[offset] + breath;
-        let y = glyph.positions[offset + 1] - breath * .5;
+        const offset = index * 3;
+        const localX = glyph.positions[offset];
+        const localY = glyph.positions[offset + 1];
+        const localZ = glyph.positions[offset + 2];
+        const projectedX = localX * cy + localZ * sy;
+        const projectedZ = localZ * cy - localX * sy;
+        const projectedY = localY * cp - projectedZ * sp;
+        const depth = projectedZ * cp + localY * sp;
+        const perspective = 1 / (1 - depth / 2500);
+        let x = glyph.centerX + projectedX * perspective + breath;
+        let y = glyph.centerY + projectedY * perspective - breath * .5;
         if (hovered) {
           const dx = x - px;
           const dy = y - py;
@@ -697,8 +720,22 @@ export class DenomMatter {
             y += ny * force * .38 + Math.sin(angle) * force * .82;
           }
         }
-        const size = glyph.sizes[index];
-        paths[glyph.tones[index]].rect(x - size * .5, y - size * .5, size, size);
+        const size = glyph.sizes[index] * (1 + localZ / 350);
+        const path = paths[glyph.tones[index]];
+        if (glyph.facets[index] === 1) {
+          path.moveTo(x, y - size * .65);
+          path.lineTo(x + size * .65, y);
+          path.lineTo(x, y + size * .65);
+          path.lineTo(x - size * .65, y);
+          path.closePath();
+        } else if (glyph.facets[index] === 2) {
+          path.moveTo(x - size * .65, y + size * .5);
+          path.lineTo(x + size * .65, y + size * .3);
+          path.lineTo(x + size * .08, y - size * .75);
+          path.closePath();
+        } else {
+          path.rect(x - size * .5, y - size * .5, size, size);
+        }
       }
     }
     const colors = ['#366986', '#5597b9', '#77b4d1', '#cbeafa', '#f0fcff'];
