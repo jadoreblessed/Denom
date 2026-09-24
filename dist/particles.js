@@ -727,51 +727,19 @@ export class DenomMatter {
     if (scene === 0) {
       const elapsed = time - this.birth;
       const cohesion = 1 - smooth(rawTransition / .075);
-      context.globalAlpha = cohesion * 0.8;
-      if (this.pointer.active && rawTransition < .45) {
-        // The fine grain must leave with the large particles under the cursor.
-        // Clip only its local area; the rest of the wordmark stays dense.
-        context.save();
-        context.beginPath();
-        context.rect(0, 0, this.width, this.height);
-        context.arc(this.pointer.x, this.pointer.y, this.mobile ? 160 : 245, 0, TAU, true);
-        context.clip('evenodd');
-      }
+      const assembled = this.reduced ? 1 : softer(clamp((elapsed - 4600) / 2800));
       this.heroDust.forEach(glyph => {
         const breath = Math.sin(time * .00038 + glyph.index * 1.8) * .7;
-        // Four shadow planes expose the extruded flank as dark blue grain.
-        // They share the mask but remain individual dots, never a solid font.
-        if (elapsed > 5500 || this.reduced) {
-          for (let layer = 4; layer >= 1; layer -= 1) {
-            context.globalAlpha = cohesion * .17;
-            context.drawImage(glyph.depthCanvas, glyph.x + breath + layer * 2.8,
-              glyph.y - breath * .5 + layer * 2.1);
-          }
+        if (assembled <= 0) return;
+        // All letters gain their depth at the same pace as the bright grains.
+        for (let layer = 3; layer >= 1; layer -= 1) {
+          context.globalAlpha = cohesion * assembled * .11;
+          context.drawImage(glyph.depthCanvas, glyph.x + breath + layer * 2.8,
+            glyph.y - breath * .5 + layer * 2.1);
         }
-        context.globalAlpha = cohesion * .8;
-        if (this.reduced || elapsed > 9500) {
-          context.drawImage(glyph.canvas, glyph.x + breath, glyph.y - breath * 0.5);
-          return;
-        }
-        // A travelling bank of fine ash fills the letters after their bright
-        // particles arrive. Tiles remain invisible until that part has formed.
-        const slices = glyph.index === 0 ? 14 : 8;
-        const sliceWidth = glyph.canvas.width / slices;
-        for (let slice = 0; slice < slices; slice += 1) {
-          const from = Math.floor(slice * sliceWidth);
-          const to = Math.ceil((slice + 1) * sliceWidth);
-          const width = to - from;
-          const order = glyph.index === 0 ? slice / slices : (slices - slice - 1) / slices;
-          const arrival = softer((elapsed - 5500 - order * 1650) / 2200);
-          if (arrival <= 0) continue;
-          context.globalAlpha = cohesion * arrival * 0.8;
-          const drift = (1 - arrival) * (order - 0.5) * 38;
-          context.drawImage(glyph.canvas, from, 0, width, glyph.canvas.height,
-            glyph.x + from + drift + breath, glyph.y + (1 - arrival) * Math.sin(slice * 2.4) * 15 - breath * 0.5,
-            width, glyph.canvas.height);
-        }
+        context.globalAlpha = cohesion * assembled * .74;
+        context.drawImage(glyph.canvas, glyph.x + breath, glyph.y - breath * .5);
       });
-      if (this.pointer.active && rawTransition < .45) context.restore();
       context.globalAlpha = 1;
     }
 
@@ -837,18 +805,18 @@ export class DenomMatter {
         const dx = x - this.pointer.x;
         const dy = y - this.pointer.y;
         const distance2 = dx * dx + dy * dy;
-        const radius = this.mobile ? 108 : 170;
+        const radius = this.mobile ? 68 : 105;
         if (distance2 < radius * radius) {
           const distance = Math.sqrt(distance2) || 1;
           proximity = (1 - distance / radius) ** 2 * (1 - transition);
-          const offset = proximity * 64;
+          const offset = proximity * 28;
           x += dx / distance * offset;
           y += dy / distance * offset;
         }
       }
 
       const depthScale = scene === 0 ? 0.94 + depthLight * 0.28 : 0.74 + depthLight * 0.7;
-      const particleRadius = this.radius[index] * depthScale * (scene === 0 ? 1.72 : 1.68) * (1 - flight * 0.1) * (1 + proximity * .35);
+      const particleRadius = this.radius[index] * depthScale * (scene === 0 ? 1.72 : 1.68) * (1 - flight * 0.1) * (1 + proximity * .07);
       const twinkle = flight > .05 && index % 17 === 0 ? .8 + .2 * Math.sin(time * .0028 + angle * 4) : scene === 0 && rawTransition === 0 && index % 13 === 0 ? .9 + .1 * Math.sin(time * .00075 + angle * 4) : 1;
       const brightFleck = index % 31 === 0;
       const heroAlpha = (0.59 + seed * 0.1 + depthLight * 0.09) * (scene === 0 && rawTransition === 0 ? particleIntro : 1) * twinkle;
