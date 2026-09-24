@@ -56,7 +56,7 @@ function splitMotionWords(element) {
 scenes.forEach((scene, index) => {
   scene.querySelectorAll('.scene-title,.scene-statement').forEach(splitMotionWords);
   if (index > 0) {
-    scene.querySelectorAll('.scene-copy,.unit-index,.market-terminal,.enter-app,.final-signature').forEach(element => {
+    scene.querySelectorAll('.scene-copy,.unit-index,.enter-app,.final-signature').forEach(element => {
       element.classList.add('motion-detail');
     });
   }
@@ -656,7 +656,7 @@ document.querySelectorAll('dialog').forEach(dialog => {
   });
 });
 
-document.fonts.load('600 420px "Denom Display"').catch(() => {}).then(() => requestAnimationFrame(() => {
+document.fonts.load('700 420px "Denom Display"').catch(() => {}).then(() => requestAnimationFrame(() => {
   try {
     matter = new DenomMatter(document.querySelector('#matter'), { reduced });
     document.body.classList.add('canvas-ready');

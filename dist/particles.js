@@ -54,41 +54,6 @@ function fillKnot(points, light, count, random) {
   }
 }
 
-function fillCandles(points, light, count, random) {
-  // Open and close are intentionally independent. The bodies form a market
-  // rhythm with actual reversals, rather than a row of ascending steps.
-  const bars = [
-    [-.09,-.005],[-.018,.078],[.09,.015],[.024,.15],[.138,.045],
-    [.055,.105],[.12,-.025],[-.018,.048],[.034,.168],[.165,.072],
-    [.08,.205],[.198,.105]
-  ];
-  for (let index = 0; index < count; index += 1) {
-    const cursor = index * 3;
-    const lane = index % bars.length;
-    const x = -.4 + lane / (bars.length - 1) * .8;
-    const [open, close] = bars[lane];
-    const low = Math.min(open, close);
-    const high = Math.max(open, close);
-    const height = high - low;
-    const wick = index % 7 === 0;
-    if (wick) {
-      points[cursor] = x + (random() - .5) * .004;
-      points[cursor + 1] = low - .042 + random() * (height + .084);
-      points[cursor + 2] = .067 + (random() - .5) * .008;
-      light[index] = 205;
-      continue;
-    }
-    const face = index % 6;
-    const across = random() - .5;
-    const depth = random() - .5;
-    points[cursor] = x + (face === 2 ? -.022 : face === 3 ? .022 : across * .044);
-    points[cursor + 1] = low + (face === 4 ? height : face === 5 ? 0 : random() * height);
-    points[cursor + 2] = face === 0 ? .075 : face === 1 ? -.075 : depth * .15;
-    const falling = close < open;
-    light[index] = (falling ? [177,65,95,132,207,92] : [240,89,139,193,252,110])[face];
-  }
-}
-
 function fillLivingLattice(points, light, count, random) {
   // A flowing mineral form suspended inside a slowly turning three-dimensional
   // lattice. The core and the cage are separate surfaces, not a flat emblem.
@@ -300,8 +265,9 @@ export class DenomMatter {
     context.fillStyle = '#fff';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
-    context.font = value === 'DENOM'
-      ? `${fontWeight} ${fontSize}px "Denom Display", sans-serif`
+    const displayGlyph = value === 'DENOM';
+    context.font = displayGlyph
+      ? `${fontWeight} ${fontSize}px "Denom Display", Georgia, serif`
       : `${fontWeight} ${fontSize}px Arial, Helvetica, sans-serif`;
     context.fillText(value, width / 2, height / 2 + fontSize * 0.025);
     const pixels = context.getImageData(0, 0, width, height).data;
@@ -349,7 +315,7 @@ export class DenomMatter {
     const contractEnd = Math.floor(baseCount * 0.92) + this.heroExtra;
     const sideY = this.mobile ? 0.16 : 0.15;
     this.heroGlyphs = [
-      { value: 'DENOM', start: 0, end: mainEnd, x: 0, y: -0.035, width: 0.35, size: 420, weight: 600, dust: 45000 },
+      { value: 'DENOM', start: 0, end: mainEnd, x: 0, y: -0.035, width: 0.35, size: 420, weight: 700, dust: 45000 },
       { value: '0x', start: mainEnd, end: contractEnd, x: -0.42, y: sideY, width: 0.088, size: 370, weight: 600, dust: 11000 },
       { value: 'X', start: contractEnd, end: this.count, x: 0.42, y: sideY, width: 0.058, size: 410, weight: 600, dust: 7500 }
     ];
@@ -423,10 +389,50 @@ export class DenomMatter {
     return output;
   }
 
-  makeCandleField() {
+  fillCurrencies(output, light, count, random) {
+    const glyphs = [
+      { symbol: '€', x: -.26, y: -.17, z: -.045, width: .115, tilt: -.23 },
+      { symbol: '$', x: .25, y: -.17, z: .095, width: .133, tilt: .17 },
+      { symbol: '¥', x: -.22, y: .19, z: .085, width: .114, tilt: -.14 },
+      { symbol: '£', x: .26, y: .19, z: -.065, width: .115, tilt: .23 }
+    ].map(glyph => ({ ...glyph, mask: this.textPoints(glyph.symbol, 420, 700) }));
+    for (let index = 0; index < count; index += 1) {
+      const cursor = index * 3;
+      const glyph = glyphs[index % glyphs.length];
+      const { mask } = glyph;
+      const localIndex = Math.floor(index / glyphs.length);
+      const layer = localIndex % 24;
+      if (layer >= 22) {
+        // Sparse coin edges sit behind the distinct, solid currency glyphs.
+        const theta = TAU * fract(localIndex * .61803398875 + random() * .005);
+        const rim = glyph.width * (1.32 + random() * .08);
+        output[cursor] = glyph.x + Math.cos(theta) * rim;
+        output[cursor + 1] = glyph.y + Math.sin(theta) * rim;
+        output[cursor + 2] = glyph.z - .13 + .025 * Math.cos(theta);
+        light[index] = 55 + Math.floor(random() * 30);
+        continue;
+      }
+      const selected = Math.min(mask.points.length - 1,
+        Math.floor(fract((localIndex + .5) * .61803398875 + random() * .008) * mask.points.length));
+      const point = mask.points[selected];
+      const front = layer < 15;
+      const rear = layer > 19;
+      const depth = front ? .095 : rear ? -.125 : -.105 + random() * .18;
+      const localX = (point[0] - mask.centerX) / mask.halfWidth * glyph.width + (front ? 0 : depth * .04);
+      const localY = (point[1] - mask.centerY) / mask.halfWidth * glyph.width + (front ? 0 : depth * .05);
+      const cos = Math.cos(glyph.tilt);
+      const sin = Math.sin(glyph.tilt);
+      output[cursor] = glyph.x + localX * cos + depth * sin;
+      output[cursor + 1] = glyph.y + localY;
+      output[cursor + 2] = glyph.z - localX * sin + depth * cos;
+      light[index] = front ? 192 + Math.floor(random() * 26) : rear ? 59 : 102 + Math.floor(random() * 36);
+    }
+  }
+
+  makeCurrencyField() {
     const output = this.blank();
     const light = new Uint8Array(this.count);
-    fillCandles(output, light, this.count, () => this.random());
+    this.fillCurrencies(output, light, this.count, () => this.random());
     this.mainLight[2] = light;
     return output;
   }
@@ -463,30 +469,30 @@ export class DenomMatter {
       }
     });
     const knot = new Float32Array(this.detailCount * 3);
-    const candles = new Float32Array(this.detailCount * 3);
+    const currencies = new Float32Array(this.detailCount * 3);
     const portal = new Float32Array(this.detailCount * 3);
     const knotLight = new Uint8Array(this.detailCount);
-    const candleLight = new Uint8Array(this.detailCount);
+    const currencyLight = new Uint8Array(this.detailCount);
     const portalLight = new Uint8Array(this.detailCount);
     fillKnot(knot, knotLight, this.detailCount, random);
-    fillCandles(candles, candleLight, this.detailCount, random);
+    this.fillCurrencies(currencies, currencyLight, this.detailCount, random);
     fillLivingLattice(portal, portalLight, this.detailCount, random);
-    this.detailShapes = [hero, knot, candles, portal];
-    this.detailLight = [heroLight, knotLight, candleLight, portalLight];
+    this.detailShapes = [hero, knot, currencies, portal];
+    this.detailLight = [heroLight, knotLight, currencyLight, portalLight];
   }
 
   buildShapes() {
     this.mainLight = [null, null, null, null];
-    this.shapes = [this.makeHero(), this.makeIndexCore(), this.makeCandleField(), this.makeMarketCore()];
+    this.shapes = [this.makeHero(), this.makeIndexCore(), this.makeCurrencyField(), this.makeMarketCore()];
     this.buildDetailShapes();
     this.buildHeroDust();
   }
 
   frameFor(scene) {
-    const desktop = [[0.5, 0.45, 0.88], [0.67, 0.48, 0.77], [0.68, 0.54, 0.72], [0.5, 0.55, 0.69]];
-    const mobile = [[0.5, 0.46, 0.92], [0.52, 0.55, 0.84], [0.5, 0.66, 0.75], [0.5, 0.58, 0.78]];
+    const desktop = [[0.5, 0.45, 0.88], [0.67, 0.48, 0.77], [0.5, 0.55, 0.93], [0.5, 0.55, 0.69]];
+    const mobile = [[0.5, 0.46, 0.92], [0.52, 0.55, 0.84], [0.5, 0.61, 0.88], [0.5, 0.58, 0.78]];
     const frame = (this.mobile ? mobile : desktop)[scene];
-    const unit = Math.min(this.width * frame[2], this.height * (scene === 0 ? 1.58 : scene === 3 ? .72 : 1.18));
+    const unit = Math.min(this.width * frame[2], this.height * (scene === 0 ? 1.58 : scene === 2 ? .82 : scene === 3 ? .72 : 1.18));
     return { x: this.width * frame[0], y: this.height * frame[1], unit };
   }
 
@@ -647,29 +653,6 @@ export class DenomMatter {
     context.globalAlpha = 1;
   }
 
-  drawTerminalFragments(time, alpha) {
-    if (alpha <= 0.005) return;
-    const context = this.context;
-    const left = this.mobile ? 20 : Math.max(22, this.width * 0.037);
-    const width = this.mobile ? this.width - 40 : Math.min(760, this.width * 0.53);
-    const edgeY = this.height * (this.mobile ? 0.83 : 0.77);
-    context.save();
-    context.globalCompositeOperation = 'screen';
-    for (let index = 0; index < 92; index += 1) {
-      const seedA = (Math.sin(index * 91.733) + 1) * 0.5;
-      const seedB = (Math.sin(index * 47.117 + 1.9) + 1) * 0.5;
-      const seedC = (Math.sin(index * 13.913 + 4.1) + 1) * 0.5;
-      const fall = Math.pow(seedB, .82);
-      const x = left + seedA * width + Math.sin(time * 0.00028 + index) * (1 + fall * 8);
-      const y = edgeY - 42 + fall * this.height * 0.18 + (seedC - .5) * 38 + Math.cos(time * 0.00022 + index * 1.7) * (2 + fall * 5);
-      const shard = 0.75 + seedC * 2.35;
-      context.globalAlpha = alpha * Math.pow(1 - fall, .82) * (0.24 + seedC * 0.44);
-      context.fillStyle = index % 6 < 2 ? '#d1f9ff' : index % 3 ? '#54ddff' : '#2789c8';
-      context.fillRect(x - shard * .5, y - .4, shard, .8 + seedB * .8);
-    }
-    context.restore();
-  }
-
   render(time) {
     const context = this.context;
     context.clearRect(0, 0, this.width, this.height);
@@ -700,7 +683,6 @@ export class DenomMatter {
     this.drawAura({ x: mix(fromFrame.x, toFrame.x, transition), y: mix(fromFrame.y, toFrame.y, transition) }, 1 - flight * 0.65, scene === 0 ? 0.48 : 0.39);
     if (scene === 0) this.drawHeroStars(time, this.local);
     this.drawAtmosphere(time, scene, this.local, flight);
-    this.drawTerminalFragments(time, scene === 2 ? 1 - transition : 0);
     context.globalCompositeOperation = 'screen';
 
     if (scene === 0) {
@@ -881,7 +863,7 @@ export class DenomMatter {
     context.globalAlpha = 1;
     if (this.lastScene !== scene) {
       this.canvas.dataset.scene = String(scene);
-      this.canvas.dataset.object = ['wordmark', 'index-core', 'candle-field', 'living-lattice'][scene];
+      this.canvas.dataset.object = ['wordmark', 'index-core', 'currency-field', 'living-lattice'][scene];
       this.lastScene = scene;
     }
     const transitionState = rawTransition > 0 && rawTransition < 1 ? 'morphing' : 'formed';
