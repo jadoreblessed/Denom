@@ -727,18 +727,21 @@ async function refreshProtocol() {
   const state = document.querySelector('#protocol-state');
   const address = document.querySelector('#protocol-address');
   const deploy = document.querySelector('#deploy-protocol');
+  const copy = document.querySelector('#copy-protocol');
   const faucet = document.querySelector('#test-faucet');
   if (!chainReady) return;
   if (!chain.configured) {
     state.textContent = 'Protocol is ready to deploy';
     address.textContent = 'One wallet transaction deploys the factory and test USDG.';
     deploy.hidden = false;
+    copy.hidden = true;
     faucet.hidden = true;
     return;
   }
   state.textContent = 'Protocol connected';
-  address.textContent = shortAddress(chain.factoryAddress);
+  address.textContent = `Factory ${chain.factoryAddress}\nQuote ${chain.quoteAddress}`;
   deploy.hidden = true;
+  copy.hidden = false;
   faucet.hidden = false;
   try {
     const liveMarkets = await chain.loadMarkets();
@@ -746,9 +749,14 @@ async function refreshProtocol() {
     renderMarkets();
   } catch (error) {
     state.textContent = 'RPC temporarily unavailable';
-    address.textContent = shortAddress(chain.factoryAddress);
+    address.textContent = `Factory ${chain.factoryAddress}`;
   }
 }
+
+document.querySelector('#copy-protocol')?.addEventListener('click', async () => {
+  await navigator.clipboard.writeText(`Factory: ${chain.factoryAddress}\nQuote token: ${chain.quoteAddress}`);
+  showToast('Contract addresses copied.');
+});
 
 document.querySelector('#deploy-protocol')?.addEventListener('click', async event => {
   const button = event.currentTarget;
