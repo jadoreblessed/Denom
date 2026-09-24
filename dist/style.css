@@ -160,8 +160,8 @@ body[data-scene="0"] .ambient::before { opacity: .55; }
 .glass-wallet svg { position: relative; z-index: 1; width: 18px; height: 18px; fill: none; stroke: #07111a; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .glass-wallet b { position: relative; z-index: 1; font-weight: 600; }
 
-.scene { position: relative; z-index: 3; height: 207svh; }
-.hero-scene { height: 212svh; }
+.scene { position: relative; z-index: 3; height: 270svh; }
+.hero-scene { height: 275svh; }
 .hero-ui {
   background:
     radial-gradient(ellipse 32% 49% at 50% 44%, rgba(40, 143, 184, .13), transparent 83%),
@@ -678,7 +678,7 @@ dialog .primary-action { width: max-content; margin-top: 24px; }
   .topbar { left: 14px; right: 12px; top: 12px; grid-template-columns: 1fr auto; }
   .topbar nav { position: absolute; left: -14px; right: -12px; top: 55px; width: calc(100% + 26px); max-width: none; padding: 4px 10px; border-left: 0; border-right: 0; border-radius: 0; }
   .glass-wallet { min-width: 145px; min-height: 45px; font-size: .82rem; }
-  .scene { height: 197svh; }.hero-scene { height: 205svh; }.portal-scene { height: 174svh; }
+  .scene { height: 250svh; }.hero-scene { height: 255svh; }.portal-scene { height: 174svh; }
   .scene-inner { min-height: 600px; }
   .scene-title { font-size: clamp(3rem, 12vw, 5rem); }
   .title-left, .title-right, .title-center { left: 20px; right: 20px; top: 16vh; width: auto; transform: none; text-align: left; }

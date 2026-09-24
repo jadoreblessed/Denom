@@ -105,6 +105,9 @@ export class DenomMatter {
     this.reduced = reduced;
     this.scene = 0;
     this.local = 0;
+    this.targetProgress = 0;
+    this.motionProgress = 0;
+    this.motionTime = null;
     this.running = false;
     this.suspended = false;
     this.seedValue = 0xdecafbad;
@@ -553,8 +556,12 @@ export class DenomMatter {
   }
 
   setScroll(scene, local) {
-    this.scene = Math.min(scene, this.shapes.length - 1);
-    this.local = clamp(local);
+    this.targetProgress = Math.min(scene, this.shapes.length - 1) + clamp(local);
+    if (this.reduced) {
+      this.motionProgress = this.targetProgress;
+      this.scene = Math.min(Math.floor(this.motionProgress), this.shapes.length - 1);
+      this.local = this.motionProgress - this.scene;
+    }
     if (this.reduced && this.running) this.render(performance.now());
   }
 
@@ -749,6 +756,18 @@ export class DenomMatter {
   }
 
   render(time) {
+    if (!this.reduced) {
+      // Scroll chooses the destination, while the cloud keeps its own clock.
+      // A quick wheel gesture can no longer skip the visible flight entirely.
+      const elapsed = this.motionTime === null ? 16 : Math.min(64, Math.max(0, time - this.motionTime));
+      this.motionTime = time;
+      const remaining = this.targetProgress - this.motionProgress;
+      const step = Math.min(Math.abs(remaining), Math.min(elapsed * .00078, Math.abs(remaining) * .22));
+      this.motionProgress += Math.sign(remaining) * step;
+      if (Math.abs(this.targetProgress - this.motionProgress) < .0001) this.motionProgress = this.targetProgress;
+      this.scene = Math.min(Math.floor(this.motionProgress), this.shapes.length - 1);
+      this.local = this.motionProgress - this.scene;
+    }
     const context = this.context;
     context.clearRect(0, 0, this.width, this.height);
     const scene = this.scene;
