@@ -89,38 +89,45 @@ function fillCandles(points, light, count, random) {
   }
 }
 
-function fillPortal(points, light, count, random) {
-  // A single deep, faceted market gate with an open center. Its continuous
-  // shell reads as one sculptural object, with no blades or radial spokes.
-  const shellEnd = Math.floor(count * .94);
+function fillLivingLattice(points, light, count, random) {
+  // A flowing mineral form suspended inside a slowly turning three-dimensional
+  // lattice. The core and the cage are separate surfaces, not a flat emblem.
+  const coreEnd = Math.floor(count * .69);
   for (let index = 0; index < count; index += 1) {
     const cursor = index * 3;
-    if (index < shellEnd) {
-      const theta = TAU * fract(index * .61803398875 + random() * .003);
-      const facet = (theta + Math.PI / 6) % (Math.PI / 3) - Math.PI / 6;
-      const hex = 1 / Math.cos(facet);
-      const face = index % 12;
-      const radial = face === 8 ? .35 : face === 9 ? .18 : .18 + random() * .17;
-      const radius = radial * hex;
-      const bevel = Math.min(1, (radial - .18) / .025, (.35 - radial) / .025);
-      const front = .11 + .065 * Math.sin(theta + .45) + .022 * Math.max(0, bevel);
-      const rear = -.13 + .027 * Math.sin(theta + .45);
-      const z = face < 7 || face === 8 || face === 9 ? front : face === 7 ? rear : rear + random() * (front - rear);
-      const tilt = .18 * Math.sin(theta) + .09 * Math.cos(2 * theta);
-      points[cursor] = Math.cos(theta) * radius * .97;
-      points[cursor + 1] = Math.sin(theta) * radius * .96;
-      points[cursor + 2] = z + tilt * .13;
-      const lit = face < 7 ? .57 : face === 8 || face === 9 ? .7 : face === 7 ? .17 : .32;
-      light[index] = Math.round(255 * clamp(lit - .15 * Math.sin(theta) + .1 * Math.cos(theta) + .09 * bevel));
+    if (index < coreEnd) {
+      const t = random() * 2 - 1;
+      const theta = TAU * random() + t * 1.35;
+      const waist = Math.pow(Math.max(0, 1 - t * t), .7);
+      const lobe = Math.sin(Math.PI * (.18 + .64 * Math.abs(t)));
+      const crease = Math.sin(3 * theta - 3.5 * t);
+      const groove = Math.exp(-11 * Math.sin(theta - 2.4 * t - .6) ** 2);
+      const radius = (.048 + .16 * lobe) * (1 + .13 * crease - .27 * groove);
+      const depth = Math.sin(theta);
+      points[cursor] = .038 * Math.sin(t * Math.PI * 1.3) + radius * Math.cos(theta);
+      points[cursor + 1] = .34 * t + .012 * waist * Math.sin(theta * 2 + t);
+      points[cursor + 2] = radius * depth * 1.18 + .018 * waist * Math.cos(3 * theta + 4 * t);
+      // Rear grains stay blue; highlights catch the folds rather than filling
+      // the whole shell with uniform white.
+      light[index] = Math.round(255 * clamp(.41 + .22 * depth + .1 * crease - .12 * t - .11 * groove));
     } else {
-      // A small enclosed ember is visible through the gate's empty center.
-      const theta = TAU * random();
-      const vertical = random() * 2 - 1;
-      const r = Math.sqrt(1 - vertical * vertical);
-      points[cursor] = Math.cos(theta) * r * .055;
-      points[cursor + 1] = vertical * .074;
-      points[cursor + 2] = -.07 + Math.sin(theta) * r * .045;
-      light[index] = Math.round(255 * clamp(.48 + vertical * -.2 + Math.sin(theta) * .19));
+      const latticeIndex = index - coreEnd;
+      const mode = latticeIndex % 3;
+      const strandCount = mode === 0 ? 10 : 9;
+      const strandIndex = Math.floor(latticeIndex / 3);
+      const strand = strandIndex % strandCount;
+      const step = Math.floor(strandIndex / strandCount);
+      const steps = Math.ceil((count - coreEnd) / (3 * strandCount));
+      const u = (step + random() * .32) / steps;
+      const t = mode === 1 ? (strand - 4) / 5 : u * 2 - 1;
+      const angle = mode === 1 ? TAU * u
+        : mode === 0 ? strand * TAU / 10 + t * .22
+          : strand * TAU / 9 + t * .85;
+      const taper = .87 + .13 * (1 - t * t);
+      points[cursor] = .335 * taper * Math.cos(angle);
+      points[cursor + 1] = .4 * t + (mode === 1 ? .009 * Math.sin(angle * 2 + t) : 0);
+      points[cursor + 2] = .255 * taper * Math.sin(angle);
+      light[index] = Math.round(255 * clamp(.4 + .18 * Math.sin(angle) + (mode === 2 ? .065 : 0)));
     }
   }
 }
@@ -425,7 +432,7 @@ export class DenomMatter {
   makeMarketCore() {
     const output = this.blank();
     const light = new Uint8Array(this.count);
-    fillPortal(output, light, this.count, () => this.random());
+    fillLivingLattice(output, light, this.count, () => this.random());
     this.mainLight[3] = light;
     return output;
   }
@@ -461,7 +468,7 @@ export class DenomMatter {
     const portalLight = new Uint8Array(this.detailCount);
     fillKnot(knot, knotLight, this.detailCount, random);
     fillCandles(candles, candleLight, this.detailCount, random);
-    fillPortal(portal, portalLight, this.detailCount, random);
+    fillLivingLattice(portal, portalLight, this.detailCount, random);
     this.detailShapes = [hero, knot, candles, portal];
     this.detailLight = [heroLight, knotLight, candleLight, portalLight];
   }
@@ -477,7 +484,7 @@ export class DenomMatter {
     const desktop = [[0.5, 0.45, 0.88], [0.67, 0.48, 0.77], [0.68, 0.54, 0.72], [0.5, 0.55, 0.69]];
     const mobile = [[0.5, 0.46, 0.92], [0.52, 0.55, 0.84], [0.5, 0.66, 0.75], [0.5, 0.58, 0.78]];
     const frame = (this.mobile ? mobile : desktop)[scene];
-    const unit = Math.min(this.width * frame[2], this.height * (scene === 0 ? 1.58 : scene === 3 ? .88 : 1.18));
+    const unit = Math.min(this.width * frame[2], this.height * (scene === 0 ? 1.58 : scene === 3 ? .72 : 1.18));
     return { x: this.width * frame[0], y: this.height * frame[1], unit };
   }
 
@@ -492,17 +499,31 @@ export class DenomMatter {
       y = Math.sin(time * 0.00008) * 0.3;
       x = -0.24 + Math.sin(time * 0.000055) * 0.055;
     } else if (scene === 3) {
-      y = .36 + Math.sin(time * .00009) * .17;
-      x = -0.27 + Math.sin(time * 0.000064) * 0.07;
-      z = time * .000013;
+      y = .24 + Math.sin(time * .00007) * .12;
+      x = -.16 + Math.sin(time * .000052) * .055;
+      z = Math.sin(time * .000065) * .09;
     }
-    return { cy: Math.cos(y), sy: Math.sin(y), cx: Math.cos(x), sx: Math.sin(x), cz: Math.cos(z), sz: Math.sin(z) };
+    return { cy: Math.cos(y), sy: Math.sin(y), cx: Math.cos(x), sx: Math.sin(x), cz: Math.cos(z), sz: Math.sin(z),
+      living: scene === 3, pulse: Math.sin(time * .00043), sway: Math.sin(time * .00029),
+      cageCos: Math.cos(time * .000076), cageSin: Math.sin(time * .000076) };
   }
 
   project(shape, cursor, frame, rotation, result) {
     let x = shape[cursor];
     let y = shape[cursor + 1];
     let z = shape[cursor + 2];
+    if (rotation.living) {
+      if (cursor < shape.length * .69) {
+        const breathe = 1 + .052 * rotation.pulse * (1 - Math.abs(y) * 1.7);
+        x = x * breathe + .012 * rotation.sway * (1 - Math.abs(y));
+        z = z * breathe + .014 * rotation.sway * x;
+        y += .009 * rotation.pulse * y * (1 - 4 * y * y);
+      } else {
+        const turnX = x * rotation.cageCos - z * rotation.cageSin;
+        z = x * rotation.cageSin + z * rotation.cageCos;
+        x = turnX;
+      }
+    }
     const rotatedX = x * rotation.cy - z * rotation.sy;
     z = x * rotation.sy + z * rotation.cy;
     x = rotatedX;
@@ -858,7 +879,7 @@ export class DenomMatter {
     context.globalAlpha = 1;
     if (this.lastScene !== scene) {
       this.canvas.dataset.scene = String(scene);
-      this.canvas.dataset.object = ['wordmark', 'index-core', 'candle-field', 'market-core'][scene];
+      this.canvas.dataset.object = ['wordmark', 'index-core', 'candle-field', 'living-lattice'][scene];
       this.lastScene = scene;
     }
     const transitionState = rawTransition > 0 && rawTransition < 1 ? 'morphing' : 'formed';
