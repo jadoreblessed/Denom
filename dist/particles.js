@@ -134,7 +134,6 @@ export class DenomMatter {
       this.detailSin[index] = Math.sin(angle);
     }
     this.pointer = { x: -9999, y: -9999, active: false };
-    this.heroRearWarp = new WeakMap();
     this.pointA = new Float32Array(3);
     this.pointB = new Float32Array(3);
     this.textMaskCache = new Map();
@@ -341,52 +340,26 @@ export class DenomMatter {
     this.heroDust = this.heroGlyphs.map((glyph, glyphIndex) => {
       const mask = this.textPoints(glyph.value, glyph.size, glyph.weight);
       const scale = glyph.width * frame.unit / mask.halfWidth;
-      const width = Math.ceil(mask.halfWidth * scale * 2 + 6);
-      const height = Math.ceil(mask.halfHeight * scale * 2 + 6);
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const context = canvas.getContext('2d');
-      const pixels = context.createImageData(width, height);
       const points = mask.points;
-      const count = Math.min(points.length, Math.round(glyph.dust * (this.mobile ? .55 : 1)));
+      const count = Math.min(points.length, Math.round(glyph.dust * (this.mobile ? .19 : .42)));
+      const positions = new Float32Array(count * 2);
+      const sizes = new Float32Array(count);
+      const tones = new Uint8Array(count);
+      const depths = new Uint8Array(count);
       for (let index = 0; index < count; index += 1) {
         const point = points[Math.floor(((index * 0.618033988749895) % 1) * points.length)];
-        const driftX = ((index * 0.75487766625) % 1 - 0.5) * 2.4;
-        const driftY = ((index * 0.56984029099) % 1 - 0.5) * 2.4;
-        const x = Math.round(width / 2 + (point[0] - mask.centerX) * scale + driftX);
-        const y = Math.round(height / 2 + (point[1] - mask.centerY) * scale + driftY);
-        if (x < 0 || x >= width || y < 0 || y >= height) continue;
-        const offset = (y * width + x) * 4;
-        const shimmer = (index * 0.75487766625) % 1;
-        pixels.data[offset] = shimmer > .86 ? 244 : 132;
-        pixels.data[offset + 1] = shimmer > .86 ? 250 : 209;
-        pixels.data[offset + 2] = 255;
-        pixels.data[offset + 3] = shimmer > .86 ? 210 : 132;
+        const layer = index % 5;
+        const rear = layer < 2;
+        const driftX = ((index * 0.75487766625) % 1 - .5) * 1.7;
+        const driftY = ((index * 0.56984029099) % 1 - .5) * 1.7;
+        positions[index * 2] = frame.x + glyph.x * frame.unit + (point[0] - mask.centerX) * scale + driftX + (rear ? 5 + layer * 4 : 0);
+        positions[index * 2 + 1] = frame.y + glyph.y * frame.unit + (point[1] - mask.centerY) * scale + driftY + (rear ? 3 + layer * 2 : 0);
+        depths[index] = rear ? 1 : 0;
+        const shimmer = (index * .75487766625) % 1;
+        tones[index] = rear ? (shimmer > .65 ? 1 : 0) : shimmer > .95 ? 4 : shimmer > .78 ? 3 : 2;
+        sizes[index] = (rear ? .9 : shimmer > .965 ? 3.2 : shimmer > .84 ? 2.25 : 1.35) * (this.mobile ? .9 : 1);
       }
-      context.putImageData(pixels, 0, 0);
-      const depthCanvas = document.createElement('canvas');
-      depthCanvas.width = width;
-      depthCanvas.height = height;
-      const depthContext = depthCanvas.getContext('2d');
-      const depthPixels = depthContext.createImageData(width, height);
-      for (let pixel = 0; pixel < pixels.data.length; pixel += 4) {
-        if (!pixels.data[pixel + 3]) continue;
-        depthPixels.data[pixel] = 63;
-        depthPixels.data[pixel + 1] = 134;
-        depthPixels.data[pixel + 2] = 191;
-        depthPixels.data[pixel + 3] = Math.min(145, pixels.data[pixel + 3]);
-      }
-      depthContext.putImageData(depthPixels, 0, 0);
-      const depthComposite = document.createElement('canvas');
-      depthComposite.width = width + 12;
-      depthComposite.height = height + 10;
-      const compositeContext = depthComposite.getContext('2d');
-      compositeContext.globalAlpha = .19;
-      for (let layer = 3; layer >= 1; layer -= 1) {
-        compositeContext.drawImage(depthCanvas, layer * 2.8, layer * 2.1);
-      }
-      return { canvas, depthComposite, x: frame.x + glyph.x * frame.unit - width / 2, y: frame.y + glyph.y * frame.unit - height / 2, index: glyphIndex };
+      return { positions, sizes, tones, depths, count, index: glyphIndex };
     });
   }
 
@@ -697,63 +670,45 @@ export class DenomMatter {
     context.globalAlpha = 1;
   }
 
-  drawHeroGrain(context, canvas, x, y, alpha, pointerStrength, rear = false) {
-    context.globalAlpha = alpha;
+  drawHeroDust(context, time, alpha) {
+    const paths = Array.from({ length: 5 }, () => new Path2D());
+    const radius = this.mobile ? 112 : 170;
+    const hovered = this.pointer.active && this.local < .12;
     const px = this.pointer.x;
     const py = this.pointer.y;
-    const radius = this.mobile ? 115 : 170;
-    if (!pointerStrength || px + radius < x || px - radius > x + canvas.width ||
-        py + radius < y || py - radius > y + canvas.height) {
-      context.drawImage(canvas, x, y);
-      return;
-    }
-      let warp = this.heroRearWarp.get(canvas);
-      if (!warp) {
-        const width = canvas.width;
-        const height = canvas.height;
-        const source = canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, width, height);
-        const surface = document.createElement('canvas');
-        surface.width = width;
-        surface.height = height;
-        const surfaceContext = surface.getContext('2d');
-        const pixels = surfaceContext.createImageData(width, height);
-        warp = { width, height, source: source.data, surface, surfaceContext, pixels };
-        this.heroRearWarp.set(canvas, warp);
-      }
-      const { width, height, source, surface, surfaceContext, pixels } = warp;
-      const target = pixels.data;
-      target.set(source);
-      const localX = px - x;
-      const localY = py - y;
-      const left = Math.max(0, Math.floor(localX - radius));
-      const right = Math.min(width, Math.ceil(localX + radius));
-      const top = Math.max(0, Math.floor(localY - radius));
-      const bottom = Math.min(height, Math.ceil(localY + radius));
-      for (let sy = top; sy < bottom; sy += 1) {
-        for (let sx = left; sx < right; sx += 1) {
-          const sourceIndex = (sy * width + sx) * 4;
-          const dot = source[sourceIndex + 3];
-          if (!dot) continue;
-          const dx = sx - localX;
-          const dy = sy - localY;
-          const distance = Math.hypot(dx, dy);
-          if (distance >= radius || distance < .01) continue;
-          const strength = (1 - distance / radius) ** 2;
-          const outward = (rear ? 58 : 36) * strength;
-          const newX = Math.round(sx + dx / distance * outward);
-          const newY = Math.round(sy + dy / distance * outward);
-          target[sourceIndex + 3] = Math.round(dot * (1 - .92 * strength));
-          if (newX < 0 || newX >= width || newY < 0 || newY >= height) continue;
-          const destination = (newY * width + newX) * 4;
-          target[destination] = source[sourceIndex];
-          target[destination + 1] = source[sourceIndex + 1];
-          target[destination + 2] = source[sourceIndex + 2];
-          target[destination + 3] = Math.min(255, target[destination + 3] + Math.round(dot * (rear ? .82 : .94)));
+    for (const glyph of this.heroDust) {
+      const breath = Math.sin(time * .00038 + glyph.index * 1.8) * .6;
+      for (let index = 0; index < glyph.count; index += 1) {
+        const offset = index * 2;
+        let x = glyph.positions[offset] + breath;
+        let y = glyph.positions[offset + 1] - breath * .5;
+        if (hovered) {
+          const dx = x - px;
+          const dy = y - py;
+          const squared = dx * dx + dy * dy;
+          if (squared < radius * radius) {
+            const distance = Math.sqrt(squared);
+            const angle = index * 2.399963229728653;
+            const nx = distance > .01 ? dx / distance : Math.cos(angle);
+            const ny = distance > .01 ? dy / distance : Math.sin(angle);
+            const variation = .38 + ((index * .75487766625) % 1) * .96;
+            const force = (1 - distance / radius) ** 2 * (glyph.depths[index] ? 50 : 35) * variation;
+            x += nx * force * .38 + Math.cos(angle) * force * .82;
+            y += ny * force * .38 + Math.sin(angle) * force * .82;
+          }
         }
+        const size = glyph.sizes[index];
+        paths[glyph.tones[index]].rect(x - size * .5, y - size * .5, size, size);
       }
-      surfaceContext.putImageData(pixels, 0, 0);
-      context.drawImage(surface, x, y);
-      return;
+    }
+    const colors = ['#366986', '#5597b9', '#77b4d1', '#cbeafa', '#f0fcff'];
+    const opacity = [.58, .66, .72, .82, .94];
+    for (let tone = 0; tone < paths.length; tone += 1) {
+      context.globalAlpha = alpha * opacity[tone];
+      context.fillStyle = colors[tone];
+      context.fill(paths[tone]);
+    }
+    context.globalAlpha = 1;
   }
 
   render(time) {
@@ -796,16 +751,7 @@ export class DenomMatter {
       const elapsed = time - this.birth;
       const cohesion = 1 - smooth(rawTransition / .075);
       const assembled = this.reduced ? 1 : softer(clamp((elapsed - 4600) / 2800));
-      const pointerStrength = this.pointer.active && rawTransition === 0 && assembled > .98 ? 1 : 0;
-      this.heroDust.forEach(glyph => {
-        const breath = Math.sin(time * .00038 + glyph.index * 1.8) * .7;
-        if (assembled <= 0) return;
-        // All letters gain their depth at the same pace as the bright grains.
-        this.drawHeroGrain(context, glyph.depthComposite, glyph.x + breath,
-          glyph.y - breath * .5, cohesion * assembled, pointerStrength * 1.65, true);
-        this.drawHeroGrain(context, glyph.canvas, glyph.x + breath, glyph.y - breath * .5,
-          cohesion * assembled * .74, pointerStrength);
-      });
+      if (assembled > 0) this.drawHeroDust(context, time, cohesion * assembled);
       context.globalAlpha = 1;
     }
 
@@ -875,9 +821,9 @@ export class DenomMatter {
         if (distance2 < radius * radius) {
           const distance = Math.sqrt(distance2) || 1;
           proximity = (1 - distance / radius) ** 2 * (1 - transition);
-          const offset = proximity * 36;
-          x += dx / distance * offset;
-          y += dy / distance * offset;
+          const offset = proximity * 36 * (.5 + seed * .9);
+          x += dx / distance * offset * .38 + cosine * offset * .82;
+          y += dy / distance * offset * .38 + sine * offset * .82;
         }
       }
 
@@ -885,11 +831,11 @@ export class DenomMatter {
       const particleRadius = this.radius[index] * depthScale * (scene === 0 ? 1.72 : 1.68) * (1 - flight * 0.1) * (1 + proximity * .06);
       const twinkle = flight > .05 && index % 17 === 0 ? .8 + .2 * Math.sin(time * .0028 + angle * 4) : scene === 0 && rawTransition === 0 && index % 13 === 0 ? .9 + .1 * Math.sin(time * .00075 + angle * 4) : 1;
       const brightFleck = index % 31 === 0;
-      const heroAlpha = (0.59 + seed * 0.1 + depthLight * 0.09) * (scene === 0 && rawTransition === 0 ? particleIntro : 1) * twinkle;
+      const heroAlpha = (0.5 + seed * 0.08 + depthLight * 0.07) * (scene === 0 && rawTransition === 0 ? particleIntro : 1) * twinkle;
       const grainAlpha = (0.13 + seed * 0.05 + depthLight * 0.09 + (brightFleck ? 0.2 : 0)) * mix(.55, 1.28, materialLight);
       const alpha = mix(heroAlpha, grainAlpha, objectMix);
       const sprite = this.sprites[this.tint[index] * 2 + this.variant[index]];
-      const spriteSize = particleRadius * mix(4.7, brightFleck ? 4.2 : 1.9, objectMix);
+      const spriteSize = particleRadius * mix(3.75, brightFleck ? 4.2 : 1.9, objectMix);
       context.globalAlpha = alpha;
 
       context.drawImage(sprite, x - spriteSize / 2, y - spriteSize / 2, spriteSize, spriteSize);
