@@ -747,3 +747,18 @@ dialog .primary-action { width: max-content; margin-top: 24px; }
   #matter { opacity: .45; }
   .canvas-fallback { display: block !important; top: 42vh; text-align: center; }
 }
+
+.protocol-panel { margin: 18px 0 14px; padding: 15px; border: 1px solid rgba(102,196,230,.18); border-radius: 15px; background: rgba(4,20,31,.58); display: grid; gap: 5px; }
+.protocol-panel > span { color: #6fa8bd; font: 600 .62rem/1.2 ui-monospace, monospace; letter-spacing: .15em; }
+.protocol-panel > strong { color: #dff8ff; font-size: .82rem; }
+.protocol-panel > small { color: #7894a4; font-size: .68rem; overflow-wrap: anywhere; }
+.protocol-panel button { margin-top: 6px; min-height: 38px; border: 1px solid rgba(109,218,249,.25); border-radius: 11px; background: rgba(58,183,225,.1); color: #cbedf8; cursor: pointer; }
+.protocol-panel button:hover { background: rgba(78,202,241,.18); }
+.dialog-secondary { width: 100%; margin-top: 8px; border: 0; background: transparent; color: #7894a4; cursor: pointer; }
+.primary-action[disabled], .trade-ticket button[disabled] { opacity: .42; cursor: not-allowed; }
+.primary-action.busy { pointer-events: none; opacity: .68; }
+.portfolio-position { width: 100%; display: grid; grid-template-columns: 1fr auto auto; gap: 18px; align-items: center; padding: 18px; border-top: 1px solid var(--line); text-align: left; }
+.portfolio-position strong { color: #dff8ff; }.portfolio-position small { display: block; color: #718a99; margin-top: 4px; }
+.portfolio-position b { color: #bcefff; }.portfolio-position span { color: #7793a3; }
+.earnings-line { display: grid; grid-template-columns: 1fr .7fr .7fr auto; gap: 18px; align-items: center; padding: 17px 20px; border-top: 1px solid var(--line); }
+.earnings-line button { border: 1px solid rgba(96,211,242,.22); border-radius: 999px; background: rgba(66,181,218,.1); color: #c9f4ff; padding: 8px 13px; cursor: pointer; }

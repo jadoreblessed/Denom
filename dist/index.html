@@ -114,7 +114,7 @@
         <div class="fee-strip"><span>Every trade costs <b>4.00%</b></span><i></i><em>1.00% platform</em><em>3.00% creator</em><em>No holder fee</em></div>
         <div class="trade-layout">
           <section class="trade-chart"><header><b>Price in <span id="chart-unit">EUR</span> <small>VERIFIED MARKET HISTORY</small></b><div class="segmented chart-ranges"><button type="button" data-chart-minutes="5" class="active">5m</button><button type="button" data-chart-minutes="15">15m</button><button type="button" data-chart-minutes="60">1h</button><button type="button" data-chart-minutes="1440">1d</button></div></header><div class="chart-viewport"><canvas id="detail-chart" aria-label="Interactive verified market candlestick chart"></canvas><p id="chart-empty" hidden>No verified trades for this market yet.</p><span class="chart-hint">DRAG TO MOVE · SCROLL TO ZOOM</span></div></section>
-          <aside class="trade-ticket"><p>Live bonding curve. Trades settle on Robinhood Chain.</p><div class="segmented trade-mode"><button class="active" type="button">Buy</button><button type="button">Sell</button></div><span>Pay with</span><div class="segmented pay-assets"><button class="active" type="button"><img src="assets/icons/eth.svg" alt="">ETH</button><button type="button"><img src="assets/icons/usdg.svg" alt="">USDG</button><button type="button" id="detail-pay-unit">EUR</button></div><label>Spend<input type="number" placeholder="0.00"></label><button class="primary-action connect-wallet" type="button"><b>Connect wallet to trade</b></button></aside>
+          <aside class="trade-ticket"><p>Live bonding curve. Trades settle on Robinhood Chain.</p><div class="segmented trade-mode"><button class="active" type="button" data-trade-mode="buy">Buy</button><button type="button" data-trade-mode="sell">Sell</button></div><span>Settle with</span><div class="segmented pay-assets"><button class="active" type="button"><img src="assets/icons/usdg.svg" alt="">USDG</button><button type="button" disabled><img src="assets/icons/eth.svg" alt="">ETH</button><button type="button" id="detail-pay-unit" disabled>EUR</button></div><label><span id="trade-amount-label">Spend USDG</span><input id="trade-amount" type="number" min="0" step="any" placeholder="0.00"></label><button class="primary-action" id="trade-action" type="button"><b>Connect wallet to trade</b></button></aside>
         </div>
         <section class="graduation-card"><header><b id="graduation-label">Bonding curve</b><strong id="graduation-percent">72%</strong></header><i><span id="graduation-bar"></span></i><p id="graduation-copy">At graduation, liquidity moves to a permanent pool and remains available for open trading.</p></section>
         <div class="market-ledger">
@@ -173,19 +173,20 @@
               <button class="add-pair" type="button">＋ Add another pair</button>
               <div class="fee-box">
                 <label>Creator tax <small>Your cut of every trade.</small><output id="creator-output">0.00%</output><input id="creator-fee" type="range" min="0" max="5" step=".5" value="0"></label>
-                <label>Holder fee <small>Goes back to holders.</small><output id="holder-output">0.00%</output><input id="holder-fee" type="range" min="0" max="5" step=".5" value="0"></label>
+                <label>Protocol fee <small>Fixed for every market.</small><output>1.00%</output><input type="range" min="1" max="1" value="1" disabled></label>
                 <div class="total-fee"><span>Every trade costs</span><strong id="total-fee">1.00%</strong></div>
               </div>
               <label class="field-title">Pay your first buy with<small>It is swapped for the pair in the same transaction.</small></label>
               <div class="segmented pay-kind"><button type="button" class="active" data-pay="ETH"><img src="assets/icons/eth.svg" alt="">ETH</button><button type="button" data-pay="USDG"><img src="assets/icons/usdg.svg" alt="">USDG</button><button type="button" data-pay="EUR"><img src="assets/icons/flag-eu.svg" alt="">EUR</button></div>
-              <label class="amount-field">First buy<input name="first-buy" type="number" min="0" step="any" placeholder="0.00"><b id="pay-symbol">ETH</b></label>
+              <label class="amount-field">First buy<input name="first-buy" type="number" min="0" step="any" placeholder="0.00"><b id="pay-symbol">USDG</b></label>
             </section>
           </div>
           <aside class="launch-summary">
             <span>YOUR LAUNCH AT A GLANCE</span>
             <div class="summary-identity"><i id="launch-symbol">✳</i><strong id="launch-name">Your next big idea<small id="launch-ticker">TICKER · EUR</small></strong></div>
-            <dl><div><dt>Priced in</dt><dd>EUR Euro</dd></div><div><dt>Migrates at</dt><dd>about 4× launch price</dd></div><div><dt>Trade fee</dt><dd id="summary-fee">1%, split 70/30</dd></div><div><dt>Launch fee</dt><dd>0.0005 ETH</dd></div><div><dt>Tradable</dt><dd>from the first block</dd></div></dl>
+            <dl><div><dt>Priced in</dt><dd>EUR Euro</dd></div><div><dt>Curve supply</dt><dd>1,000,000,000 tokens</dd></div><div><dt>Trade fee</dt><dd id="summary-fee">1.00% total</dd></div><div><dt>Launch fee</dt><dd>network gas only</dd></div><div><dt>Tradable</dt><dd>from the first block</dd></div></dl>
             <ul><li>Name the coin</li><li>Give it a ticker</li><li>Enter a first buy</li></ul>
+            <div class="protocol-panel" id="protocol-panel"><span>ROBINHOOD TESTNET</span><strong id="protocol-state">Checking protocol…</strong><small id="protocol-address">Onchain launch, curve and settlement.</small><button type="button" id="deploy-protocol" hidden>Deploy test protocol</button><button type="button" id="test-faucet" hidden>Mint test USDG</button></div>
             <button type="submit" class="primary-action">Review launch</button>
           </aside>
         </form>
@@ -231,13 +232,13 @@
       <section class="app-view portfolio-view" data-view="portfolio" hidden>
         <header class="product-heading simple"><div><span>PORTFOLIO</span><h2>Your positions</h2><p>Coins and permanent liquidity, connected to your wallet.</p></div></header>
         <div class="portfolio-summary"><article><span>PORTFOLIO VALUE</span><strong>$0.00</strong><small>Connect wallet to load balances</small></article><article><span>COINS</span><strong>0</strong></article><article><span>LP POSITIONS</span><strong>0</strong></article></div>
-        <div class="empty-panel"><div class="segmented"><button class="active">Coins</button><button>Liquidity</button></div><i></i><h3>No positions yet</h3><p>Your coins and liquidity positions will appear here.</p><button type="button" class="connect-wallet primary-action"><b>Connect wallet</b></button></div>
+        <div class="empty-panel" id="portfolio-body"><div class="segmented"><button class="active">Coins</button><button>Liquidity</button></div><i></i><h3>No positions yet</h3><p>Your coins and liquidity positions will appear here.</p><button type="button" class="connect-wallet primary-action"><b>Connect wallet</b></button></div>
       </section>
 
       <section class="app-view earnings-view" data-view="earnings" hidden>
         <header class="product-heading simple"><div><span>EARNINGS</span><h2>Fees return to you</h2><p>Track creator taxes and liquidity revenue.</p></div></header>
-        <div class="earnings-board"><article><span>CLAIMABLE NOW</span><strong>$0.00</strong><button type="button" class="connect-wallet primary-action"><b>Connect wallet to claim</b></button></article><article><span>PLATFORM FEE ROUTING</span><div><strong>70%</strong><small>creator</small></div><div><strong>30%</strong><small>protocol</small></div></article></div>
-        <div class="data-table earnings-table"><div class="table-head"><span>Market</span><span>Volume</span><span>Your earnings</span></div><div class="empty-table"><h3>No active markets</h3><p>Launch a coin to begin earning from its trading flow.</p><button type="button" data-app-view="launch">Launch a coin</button></div></div>
+        <div class="earnings-board"><article><span>CLAIMABLE NOW</span><strong id="claimable-total">$0.00</strong><button type="button" class="connect-wallet primary-action"><b>Connect wallet to claim</b></button></article><article><span>FEE ROUTING</span><div><strong>Creator</strong><small>set at launch</small></div><div><strong>1%</strong><small>protocol</small></div></article></div>
+        <div class="data-table earnings-table"><div class="table-head"><span>Market</span><span>Volume</span><span>Your earnings</span></div><div id="earnings-body" class="empty-table"><h3>No active markets</h3><p>Launch a coin to begin earning from its trading flow.</p><button type="button" data-app-view="launch">Launch a coin</button></div></div>
       </section>
 
       <section class="app-view rates-view" data-view="rates" hidden>
@@ -250,7 +251,7 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <dialog id="wallet-dialog" aria-labelledby="wallet-title"><button class="dialog-close" aria-label="Close">×</button><span>WALLET</span><h2 id="wallet-title">Connect your wallet</h2><p>No compatible wallet was detected.</p><button class="dialog-done primary-action">Close</button></dialog>
-  <dialog id="review-dialog" aria-labelledby="review-title"><button class="dialog-close" aria-label="Close">×</button><span>REVIEW</span><h2 id="review-title">Ready for the chain</h2><p>The interface is complete. Contract deployment will become active when the DENOM backend is connected.</p><button class="dialog-done primary-action">Back to editor</button></dialog>
+  <dialog id="review-dialog" aria-labelledby="review-title"><button class="dialog-close" aria-label="Close">×</button><span>REVIEW</span><h2 id="review-title">Ready for the chain</h2><p id="review-copy">Your market will be created on Robinhood Chain Testnet and becomes tradable as soon as the transaction confirms.</p><button id="confirm-launch" class="primary-action" type="button">Launch market</button><button class="dialog-done dialog-secondary" type="button">Back to editor</button></dialog>
   <script type="module" src="app.js"></script>
 </body>
 </html>

@@ -806,9 +806,11 @@ export class DenomMatter {
         const angle = index * 2.399963229728653;
         const nx = distance > .01 ? dx / distance : Math.cos(angle);
         const ny = distance > .01 ? dy / distance : Math.sin(angle);
-        const variation = .38 + ((index * .75487766625) % 1) * .96;
-        const force = (1 - distance / reach) ** 1.35 * (glyph.depths[index] ? 132 : 108) * variation;
-        const swirl = (index % 2 ? 1 : -1) * force * .19;
+        const variation = .72 + ((index * .75487766625) % 1) * .58;
+        const core = radius * (.32 + ((index * .41421356237 + glyph.index * .19) % 1) * .15);
+        const force = (Math.max(0, core - distance)
+          + (1 - distance / reach) ** 1.7 * (glyph.depths[index] ? 66 : 54)) * variation;
+        const swirl = (index % 2 ? 1 : -1) * force * .16;
         const x = originalX + nx * force + -ny * swirl;
         const y = originalY + ny * force + nx * swirl;
         const size = glyph.sizes[index] * (1 + glyph.positions[index * 3 + 2] / 350);
@@ -966,12 +968,14 @@ export class DenomMatter {
         const dx = x - this.pointer.x;
         const dy = y - this.pointer.y;
         const distance2 = dx * dx + dy * dy;
-        const radius = (this.mobile ? 115 : 170) * (.74 + fract(seed * 13.37) * .38);
+        const baseRadius = this.mobile ? 115 : 170;
+        const radius = baseRadius * (.74 + fract(seed * 13.37) * .38);
         if (distance2 < radius * radius) {
           const distance = Math.sqrt(distance2) || 1;
-          proximity = (1 - distance / radius) ** 1.35 * (1 - transition);
-          const offset = proximity * 108 * (.6 + seed * .8);
-          const swirl = (index % 2 ? 1 : -1) * offset * .16;
+          proximity = (1 - distance / radius) ** 1.45 * (1 - transition);
+          const core = baseRadius * (.31 + fract(seed * 19.73) * .16);
+          const offset = (Math.max(0, core - distance) + proximity * 54) * (.76 + seed * .48);
+          const swirl = (index % 2 ? 1 : -1) * offset * .14;
           x += dx / distance * offset - dy / distance * swirl;
           y += dy / distance * offset + dx / distance * swirl;
         }

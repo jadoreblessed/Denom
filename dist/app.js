@@ -1,5 +1,6 @@
 import { DenomMatter } from './particles.js';
 import { verifiedCandles } from './market-data.js';
+import { DenomChain } from './chain.js';
 
 const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
 const smooth = value => {
@@ -17,6 +18,10 @@ let metrics = [];
 let scheduled = false;
 let toastTimer;
 let loadingFinished = false;
+const chain = new DenomChain();
+let chainReady = false;
+let activeMarket = null;
+let tradeMode = 'buy';
 
 function finishLoading() {
   if (loadingFinished) return;
@@ -157,6 +162,7 @@ function openApp(view = 'explore') {
   matter?.setSuspended(true);
   appShell.scrollTop = 0;
   requestAnimationFrame(() => appShell.classList.add('visible'));
+  if ((selected === 'portfolio' || selected === 'earnings') && chain.account) refreshWalletViews().catch(() => {});
 }
 
 function closeApp(event) {
@@ -208,7 +214,7 @@ const marketSeeds = [
   { name:'Kangaroo', ticker:'KANGA', unit:'AUD', price:.000006026, cap:4291, curve:2.4, address:'0x7405b9bfe240562f84a54b6190305d32baa2f1bf', logo:'https://beige-realistic-egret-294.mypinata.cloud/ipfs/bafkreig6s2wbnqylbqgbvbbfy2y3ypazataktz7wvazb3336lmb5cbxfoi' }
 ];
 unitMeta.CAD = { icon:'https://flagcdn.com/w40/ca.png', symbol:'C$' };
-const marketData = Array.from({ length: 310 }, (_, index) => {
+let marketData = Array.from({ length: 310 }, (_, index) => {
   const source = marketSeeds[index % marketSeeds.length];
   const round = Math.floor(index / marketSeeds.length);
   const scale = round === 0 ? 1 : Math.max(.12, .42 - round * .018);
@@ -228,7 +234,8 @@ function shortAddress(address) {
 
 function formatMarketPrice(market) {
   const digits = market.price < .01 ? 6 : market.price < 1 ? 4 : 2;
-  return `${unitMeta[market.unit].symbol}${market.price.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
+  const unit = unitMeta[market.unit] || { symbol:`${market.unit} ` };
+  return `${unit.symbol}${market.price.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
 }
 
 function filteredMarkets() {
@@ -267,6 +274,29 @@ function renderMarketLedger(market) {
   document.querySelector('#detail-creator').textContent = `0x${(market.id * 9311 + 0xAF11).toString(16).padStart(4,'0')}…${(market.id * 1777 + 0x0A8D).toString(16).slice(-4).toUpperCase()}`;
   document.querySelector('#detail-unit-label').textContent = `${market.unit} token`;
   document.querySelector('#detail-unit-contract').textContent = `0x${(market.id * 4567 + 0xBC91).toString(16).padStart(4,'0')}…${(market.id * 3221 + 0x0987).toString(16).slice(-4).toUpperCase()}`;
+}
+
+function renderOnchainLedger(market, trades) {
+  const recent = [...trades].reverse().slice(0, 8);
+  const body = recent.map(trade => `<div class="trade-line"><b class="${trade.buy ? 'buy' : 'sell'}">${trade.buy ? 'Buy' : 'Sell'}</b><span>${trade.quote.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span><span>${trade.tokens.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span><code>${shortAddress(trade.trader)}</code><span>${new Date(trade.timestamp * 1000).toLocaleString()}</span></div>`).join('');
+  document.querySelector('#recent-trades-body').innerHTML = body || '<p class="ledger-empty">No onchain trades yet.</p>';
+  document.querySelector('#holders-body').innerHTML = '<p class="ledger-empty">Holder balances update from token transfers after the first trade.</p>';
+  document.querySelector('#trade-unit-head').textContent = market.unit;
+  document.querySelector('#trade-token-head').textContent = market.ticker;
+  document.querySelector('#detail-contract').textContent = shortAddress(market.marketAddress);
+  document.querySelector('#detail-creator').textContent = shortAddress(market.creator);
+  document.querySelector('#detail-unit-label').textContent = 'Settlement token';
+  document.querySelector('#detail-unit-contract').textContent = shortAddress(market.quoteToken);
+  verifiedCandles[market.address.toLowerCase()] = trades.map(trade => ({
+    t: trade.timestamp,
+    o: trade.price.toString(), h: trade.price.toString(), l: trade.price.toString(), c: trade.price.toString(),
+    v: parseUnitsForChart(trade.tokens)
+  }));
+}
+
+function parseUnitsForChart(value) {
+  const safe = Number.isFinite(value) ? Math.max(0, value) : 0;
+  return BigInt(Math.round(safe * 1e6)) * 10n ** 12n + '';
 }
 
 class VerifiedMarketChart {
@@ -446,9 +476,10 @@ document.querySelectorAll('[data-chart-minutes]').forEach(button => {
   button.addEventListener('click', () => marketChart.setRange(Number(button.dataset.chartMinutes)));
 });
 
-function selectMarket(id) {
+async function selectMarket(id) {
   const market = marketData.find(item => item.id === Number(id));
   if (!market) return;
+  activeMarket = market;
   document.querySelector('#detail-mark').src = market.logo;
   document.querySelector('#detail-mark').alt = market.name;
   document.querySelector('#detail-name').textContent = market.name;
@@ -463,10 +494,36 @@ function selectMarket(id) {
   document.querySelector('#graduation-label').textContent = market.curve === 100 ? 'Graduated' : 'Bonding curve';
   document.querySelector('#graduation-percent').textContent = `${market.curve}%`;
   document.querySelector('#graduation-bar').style.width = `${market.curve}%`;
-  document.querySelector('#graduation-copy').textContent = market.curve === 100 ? `The curve sold out. Everything it raised is now a permanent pool against ${market.unit}, with liquidity locked.` : `This market is ${market.curve.toFixed(1)}% of the way to graduation. Liquidity moves to a permanent pool when the curve completes.`;
+  document.querySelector('#graduation-copy').textContent = market.source === 'chain'
+    ? market.curve === 100
+      ? 'The fixed curve supply has been sold. Existing holders can still sell back into its onchain reserve.'
+      : `This market is ${market.curve.toFixed(2)}% through its fixed onchain supply.`
+    : market.curve === 100
+      ? `The curve sold out. Everything it raised is now a permanent pool against ${market.unit}, with liquidity locked.`
+      : `This market is ${market.curve.toFixed(1)}% of the way to graduation. Liquidity moves to a permanent pool when the curve completes.`;
   document.querySelector('#locked-copy').textContent = `Nothing is locked or burned against ${market.ticker}. If the developer locks or burns any, it appears here from the chain.`;
-  drawMarketChart(market);
-  renderMarketLedger(market);
+  if (market.source === 'chain') {
+    const totalFee = 1 + market.creatorFee;
+    document.querySelector('.fee-strip > span b').textContent = `${totalFee.toFixed(2)}%`;
+    const feeItems = document.querySelectorAll('.fee-strip em');
+    if (feeItems[0]) feeItems[0].textContent = '1.00% protocol';
+    if (feeItems[1]) feeItems[1].textContent = `${market.creatorFee.toFixed(2)}% creator`;
+    if (feeItems[2]) feeItems[2].textContent = 'No holder fee';
+  }
+  if (market.source === 'chain') {
+    document.querySelector('#recent-trades-body').innerHTML = '<p class="ledger-empty">Loading verified trades…</p>';
+    try {
+      const trades = await chain.loadTrades(market);
+      renderOnchainLedger(market, trades);
+      drawMarketChart(market);
+    } catch (error) {
+      document.querySelector('#recent-trades-body').innerHTML = '<p class="ledger-empty">The RPC did not return trade history. Retry in a moment.</p>';
+      drawMarketChart(market);
+    }
+  } else {
+    drawMarketChart(market);
+    renderMarketLedger(market);
+  }
   openApp('market-detail');
   navItems.forEach(item => item.classList.toggle('active', item.dataset.appView === 'explore'));
 }
@@ -510,7 +567,6 @@ const launchForm = document.querySelector('#launch-form');
 const launchName = launchForm?.elements.namedItem('name');
 const launchTicker = launchForm?.elements.namedItem('ticker');
 const creatorFee = document.querySelector('#creator-fee');
-const holderFee = document.querySelector('#holder-fee');
 const launchPairSelect = document.querySelector('#launch-pair-select');
 const launchPairMenu = document.querySelector('#launch-pair-menu');
 let activeLaunchPair = 'EUR';
@@ -524,16 +580,14 @@ function syncLaunch() {
 
 function syncFees() {
   const creator = Number(creatorFee?.value || 0);
-  const holder = Number(holderFee?.value || 0);
-  const total = 1 + creator + holder;
+  const total = 1 + creator;
   document.querySelector('#creator-output').textContent = `${creator.toFixed(2)}%`;
-  document.querySelector('#holder-output').textContent = `${holder.toFixed(2)}%`;
   document.querySelector('#total-fee').textContent = `${total.toFixed(2)}%`;
   document.querySelector('#summary-fee').textContent = `${total.toFixed(2)}% total`;
 }
 
 [launchName, launchTicker].forEach(input => input?.addEventListener('input', syncLaunch));
-[creatorFee, holderFee].forEach(input => input?.addEventListener('input', syncFees));
+[creatorFee].forEach(input => input?.addEventListener('input', syncFees));
 
 launchPairSelect?.addEventListener('click', () => {
   const opening = launchPairMenu.hidden;
@@ -621,30 +675,218 @@ document.querySelectorAll('.rate-tabs button').forEach(button => {
 
 function reviewForm(event) {
   event.preventDefault();
-  if (event.currentTarget.reportValidity()) document.querySelector('#review-dialog').showModal();
+  if (!event.currentTarget.reportValidity()) return;
+  const copy = document.querySelector('#review-copy');
+  const confirm = document.querySelector('#confirm-launch');
+  if (!chain.configured) {
+    copy.textContent = 'Deploy the DENOM test protocol once, then this market can be created on Robinhood Chain Testnet.';
+    confirm.disabled = true;
+  } else {
+    copy.textContent = `${launchName.value.trim()} (${launchTicker.value.trim().toUpperCase()}) will be created on Robinhood Chain Testnet and becomes tradable after confirmation.`;
+    confirm.disabled = false;
+  }
+  document.querySelector('#review-dialog').showModal();
 }
 launchForm?.addEventListener('submit', reviewForm);
-pairForm?.addEventListener('submit', reviewForm);
-document.querySelectorAll('.art-drop,.add-pair').forEach(button => button.addEventListener('click', () => showToast('Ready for backend connection.')));
+pairForm?.addEventListener('submit', event => {
+  event.preventDefault();
+  showToast('Custom settlement assets require a verified token contract.');
+});
+document.querySelectorAll('.art-drop').forEach(button => button.addEventListener('click', () => showToast('A deterministic onchain mark is generated from the ticker.')));
+document.querySelectorAll('.add-pair').forEach(button => button.addEventListener('click', () => openApp('make-pair')));
 
-document.querySelectorAll('.connect-wallet').forEach(button => {
-  button.addEventListener('click', async () => {
-    if (!window.ethereum) {
-      document.querySelector('#wallet-dialog').showModal();
-      return;
+function walletLabel(address) {
+  return `${address.slice(0, 6)}…${address.slice(-4)}`;
+}
+
+function paintWallet(address) {
+  document.querySelectorAll('.connect-wallet b').forEach(label => { label.textContent = walletLabel(address); });
+  const trade = document.querySelector('#trade-action b');
+  if (trade && activeMarket?.source === 'chain') trade.textContent = `${tradeMode === 'buy' ? 'Buy' : 'Sell'} ${activeMarket.ticker}`;
+}
+
+async function connectWallet() {
+  try {
+    const address = await chain.connect();
+    paintWallet(address);
+    await refreshWalletViews();
+    return address;
+  } catch (error) {
+    if (!window.ethereum || error?.code !== 4001) {
+      const dialog = document.querySelector('#wallet-dialog');
+      dialog.querySelector('p').textContent = error?.message || 'No compatible wallet was detected.';
+      dialog.showModal();
     }
-    try {
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-      const address = accounts?.[0];
-      if (address) {
-        document.querySelectorAll('.connect-wallet b').forEach(label => {
-          label.textContent = `${address.slice(0, 6)}…${address.slice(-4)}`;
-        });
-      }
-    } catch (error) {
-      if (error?.code !== 4001) document.querySelector('#wallet-dialog').showModal();
+    return '';
+  }
+}
+
+document.querySelectorAll('.connect-wallet').forEach(button => button.addEventListener('click', connectWallet));
+
+async function refreshProtocol() {
+  const state = document.querySelector('#protocol-state');
+  const address = document.querySelector('#protocol-address');
+  const deploy = document.querySelector('#deploy-protocol');
+  const faucet = document.querySelector('#test-faucet');
+  if (!chainReady) return;
+  if (!chain.configured) {
+    state.textContent = 'Protocol is ready to deploy';
+    address.textContent = 'One wallet transaction deploys the factory and test USDG.';
+    deploy.hidden = false;
+    faucet.hidden = true;
+    return;
+  }
+  state.textContent = 'Protocol connected';
+  address.textContent = shortAddress(chain.factoryAddress);
+  deploy.hidden = true;
+  faucet.hidden = false;
+  try {
+    const liveMarkets = await chain.loadMarkets();
+    marketData = liveMarkets;
+    renderMarkets();
+  } catch (error) {
+    state.textContent = 'RPC temporarily unavailable';
+    address.textContent = shortAddress(chain.factoryAddress);
+  }
+}
+
+document.querySelector('#deploy-protocol')?.addEventListener('click', async event => {
+  const button = event.currentTarget;
+  try {
+    button.disabled = true;
+    button.textContent = 'Confirm deployment in wallet…';
+    if (!chain.account && !await connectWallet()) return;
+    button.textContent = 'Deploying contracts…';
+    await chain.deployTestProtocol();
+    showToast('DENOM protocol deployed on Robinhood Chain Testnet.');
+    await refreshProtocol();
+  } catch (error) {
+    showToast(error?.shortMessage || error?.message || 'Deployment failed.');
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Deploy test protocol';
+  }
+});
+
+document.querySelector('#test-faucet')?.addEventListener('click', async event => {
+  const button = event.currentTarget;
+  try {
+    button.disabled = true;
+    if (!chain.account && !await connectWallet()) return;
+    await chain.faucet();
+    showToast('10,000 test USDG minted to your wallet.');
+  } catch (error) {
+    showToast(error?.shortMessage || error?.message || 'Faucet transaction failed.');
+  } finally { button.disabled = false; }
+});
+
+document.querySelector('#confirm-launch')?.addEventListener('click', async event => {
+  const button = event.currentTarget;
+  if (!chain.configured) return;
+  try {
+    button.disabled = true;
+    button.textContent = 'Confirm in wallet…';
+    if (!chain.account && !await connectWallet()) return;
+    const firstBuy = Number(launchForm.elements.namedItem('first-buy').value || 0);
+    const result = await chain.launch({
+      name: launchName.value.trim(),
+      ticker: launchTicker.value.trim().toUpperCase(),
+      unit: activeLaunchPair,
+      description: launchForm.elements.namedItem('description').value.trim(),
+      creatorFee: Number(creatorFee.value || 0)
+    });
+    if (firstBuy > 0 && result.market) {
+      const balance = await chain.quoteBalance();
+      if (balance < firstBuy) await chain.faucet();
+      await chain.buy(result.market, firstBuy);
     }
-  });
+    document.querySelector('#review-dialog').close();
+    launchForm.reset();
+    syncLaunch();
+    syncFees();
+    await refreshProtocol();
+    openApp('explore');
+    showToast('Market is live on Robinhood Chain Testnet.');
+  } catch (error) {
+    showToast(error?.shortMessage || error?.message || 'Launch transaction failed.');
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Launch market';
+  }
+});
+
+document.querySelectorAll('[data-trade-mode]').forEach(button => button.addEventListener('click', () => {
+  tradeMode = button.dataset.tradeMode;
+  document.querySelector('#trade-amount-label').textContent = tradeMode === 'buy' ? 'Spend USDG' : `Sell ${activeMarket?.ticker || 'tokens'}`;
+  const label = document.querySelector('#trade-action b');
+  label.textContent = chain.account && activeMarket?.source === 'chain' ? `${tradeMode === 'buy' ? 'Buy' : 'Sell'} ${activeMarket.ticker}` : 'Connect wallet to trade';
+}));
+
+document.querySelector('#trade-action')?.addEventListener('click', async event => {
+  const button = event.currentTarget;
+  if (!chain.account && !await connectWallet()) return;
+  if (activeMarket?.source !== 'chain') {
+    showToast('This reference market is read-only. Launch a DENOM market to trade.');
+    return;
+  }
+  const amount = Number(document.querySelector('#trade-amount').value || 0);
+  if (!(amount > 0)) { showToast('Enter an amount first.'); return; }
+  try {
+    button.disabled = true;
+    button.classList.add('busy');
+    button.querySelector('b').textContent = 'Confirm in wallet…';
+    if (tradeMode === 'buy') await chain.buy(activeMarket.marketAddress, amount);
+    else await chain.sell(activeMarket.marketAddress, amount);
+    const index = marketData.findIndex(item => item.marketAddress === activeMarket.marketAddress);
+    const refreshed = await chain.loadMarket(activeMarket.marketAddress, index);
+    marketData[index] = refreshed;
+    renderMarkets();
+    await selectMarket(index);
+    await refreshWalletViews();
+    showToast(`${tradeMode === 'buy' ? 'Buy' : 'Sell'} confirmed onchain.`);
+  } catch (error) {
+    showToast(error?.shortMessage || error?.message || 'Trade failed.');
+  } finally {
+    button.disabled = false;
+    button.classList.remove('busy');
+    button.querySelector('b').textContent = `${tradeMode === 'buy' ? 'Buy' : 'Sell'} ${activeMarket?.ticker || ''}`;
+  }
+});
+
+async function refreshWalletViews() {
+  if (!chain.account || !chain.configured) return;
+  const liveMarkets = marketData.filter(item => item.source === 'chain');
+  const [positions, earnings] = await Promise.all([chain.portfolio(liveMarkets), chain.creatorEarnings(liveMarkets)]);
+  const value = positions.reduce((sum, item) => sum + item.value, 0);
+  const summary = document.querySelectorAll('.portfolio-summary article strong');
+  if (summary[0]) summary[0].textContent = `$${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+  if (summary[1]) summary[1].textContent = String(positions.length);
+  const portfolio = document.querySelector('#portfolio-body');
+  if (positions.length) portfolio.innerHTML = positions.map(item => `<div class="portfolio-position"><strong>${item.name}<small>${item.balance.toLocaleString(undefined, { maximumFractionDigits: 4 })} ${item.ticker}</small></strong><b>${formatMarketPrice(item)}</b><span>$${item.value.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div>`).join('');
+  const total = earnings.reduce((sum, item) => sum + item.claimable, 0);
+  document.querySelector('#claimable-total').textContent = `${total.toLocaleString(undefined, { maximumFractionDigits: 4 })} USDG`;
+  const earningsBody = document.querySelector('#earnings-body');
+  if (earnings.length) earningsBody.innerHTML = earnings.map(item => `<div class="earnings-line"><strong>${item.name}<small>${item.ticker}</small></strong><span>${item.volume.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDG</span><b>${item.claimable.toLocaleString(undefined, { maximumFractionDigits: 4 })} USDG</b><button type="button" data-claim-market="${item.marketAddress}" ${item.claimable ? '' : 'disabled'}>Claim</button></div>`).join('');
+}
+
+document.querySelector('#earnings-body')?.addEventListener('click', async event => {
+  const button = event.target.closest('[data-claim-market]');
+  if (!button) return;
+  try {
+    button.disabled = true;
+    await chain.claim(button.dataset.claimMarket);
+    await refreshWalletViews();
+    showToast('Creator fees claimed.');
+  } catch (error) { showToast(error?.shortMessage || error?.message || 'Claim failed.'); }
+});
+
+window.ethereum?.on?.('accountsChanged', accounts => {
+  if (accounts[0]) connectWallet();
+  else {
+    chain.account = '';
+    chain.signer = null;
+    document.querySelectorAll('.connect-wallet b').forEach(label => { label.textContent = 'Connect wallet'; });
+  }
 });
 
 document.querySelectorAll('dialog').forEach(dialog => {
@@ -654,6 +896,16 @@ document.querySelectorAll('dialog').forEach(dialog => {
     const outside = event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom;
     if (event.target === dialog && outside) dialog.close();
   });
+});
+
+chain.prepare().then(() => {
+  chainReady = true;
+  return refreshProtocol();
+}).catch(error => {
+  chainReady = false;
+  const state = document.querySelector('#protocol-state');
+  if (state) state.textContent = 'Protocol files unavailable';
+  console.warn('DENOM chain adapter unavailable.', error);
 });
 
 document.fonts.load('700 420px "Denom Display"').catch(() => {}).then(() => requestAnimationFrame(() => {
