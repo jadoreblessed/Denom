@@ -134,6 +134,7 @@ export class DenomMatter {
       this.detailSin[index] = Math.sin(angle);
     }
     this.pointer = { x: -9999, y: -9999, active: false };
+    this.heroRearWarp = new WeakMap();
     this.pointA = new Float32Array(3);
     this.pointB = new Float32Array(3);
     this.textMaskCache = new Map();
@@ -371,9 +372,9 @@ export class DenomMatter {
       const depthPixels = depthContext.createImageData(width, height);
       for (let pixel = 0; pixel < pixels.data.length; pixel += 4) {
         if (!pixels.data[pixel + 3]) continue;
-        depthPixels.data[pixel] = 45;
-        depthPixels.data[pixel + 1] = 105;
-        depthPixels.data[pixel + 2] = 169;
+        depthPixels.data[pixel] = 63;
+        depthPixels.data[pixel + 1] = 134;
+        depthPixels.data[pixel + 2] = 191;
         depthPixels.data[pixel + 3] = Math.min(145, pixels.data[pixel + 3]);
       }
       depthContext.putImageData(depthPixels, 0, 0);
@@ -381,7 +382,7 @@ export class DenomMatter {
       depthComposite.width = width + 12;
       depthComposite.height = height + 10;
       const compositeContext = depthComposite.getContext('2d');
-      compositeContext.globalAlpha = .11;
+      compositeContext.globalAlpha = .19;
       for (let layer = 3; layer >= 1; layer -= 1) {
         compositeContext.drawImage(depthCanvas, layer * 2.8, layer * 2.1);
       }
@@ -696,7 +697,7 @@ export class DenomMatter {
     context.globalAlpha = 1;
   }
 
-  drawHeroGrain(context, canvas, x, y, alpha, pointerStrength) {
+  drawHeroGrain(context, canvas, x, y, alpha, pointerStrength, rear = false) {
     context.globalAlpha = alpha;
     const px = this.pointer.x;
     const py = this.pointer.y;
@@ -706,26 +707,53 @@ export class DenomMatter {
       context.drawImage(canvas, x, y);
       return;
     }
-    // A faint undisturbed texture keeps the letter readable at the center.
-    // Draw the entire warped texture with no circular clip or hard boundary.
-    context.globalAlpha = alpha * .42;
-    context.drawImage(canvas, x, y);
-    context.globalAlpha = alpha * .58;
-    const tile = 22;
-    for (let sy = 0; sy < canvas.height; sy += tile) {
-      for (let sx = 0; sx < canvas.width; sx += tile) {
-        const cx = x + sx + tile * .5;
-        const cy = y + sy + tile * .5;
-        const dx = cx - px;
-        const dy = cy - py;
-        const distance = Math.hypot(dx, dy) || 1;
-        const pull = Math.max(0, 1 - distance / radius) ** 2 * pointerStrength * 36;
-        const width = Math.min(tile, canvas.width - sx);
-        const height = Math.min(tile, canvas.height - sy);
-        context.drawImage(canvas, sx, sy, width, height,
-          x + sx + dx / distance * pull, y + sy + dy / distance * pull, width + .5, height + .5);
+      let warp = this.heroRearWarp.get(canvas);
+      if (!warp) {
+        const width = canvas.width;
+        const height = canvas.height;
+        const source = canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, width, height);
+        const surface = document.createElement('canvas');
+        surface.width = width;
+        surface.height = height;
+        const surfaceContext = surface.getContext('2d');
+        const pixels = surfaceContext.createImageData(width, height);
+        warp = { width, height, source: source.data, surface, surfaceContext, pixels };
+        this.heroRearWarp.set(canvas, warp);
       }
-    }
+      const { width, height, source, surface, surfaceContext, pixels } = warp;
+      const target = pixels.data;
+      target.set(source);
+      const localX = px - x;
+      const localY = py - y;
+      const left = Math.max(0, Math.floor(localX - radius));
+      const right = Math.min(width, Math.ceil(localX + radius));
+      const top = Math.max(0, Math.floor(localY - radius));
+      const bottom = Math.min(height, Math.ceil(localY + radius));
+      for (let sy = top; sy < bottom; sy += 1) {
+        for (let sx = left; sx < right; sx += 1) {
+          const sourceIndex = (sy * width + sx) * 4;
+          const dot = source[sourceIndex + 3];
+          if (!dot) continue;
+          const dx = sx - localX;
+          const dy = sy - localY;
+          const distance = Math.hypot(dx, dy);
+          if (distance >= radius || distance < .01) continue;
+          const strength = (1 - distance / radius) ** 2;
+          const outward = (rear ? 58 : 36) * strength;
+          const newX = Math.round(sx + dx / distance * outward);
+          const newY = Math.round(sy + dy / distance * outward);
+          target[sourceIndex + 3] = Math.round(dot * (1 - .92 * strength));
+          if (newX < 0 || newX >= width || newY < 0 || newY >= height) continue;
+          const destination = (newY * width + newX) * 4;
+          target[destination] = source[sourceIndex];
+          target[destination + 1] = source[sourceIndex + 1];
+          target[destination + 2] = source[sourceIndex + 2];
+          target[destination + 3] = Math.min(255, target[destination + 3] + Math.round(dot * (rear ? .82 : .94)));
+        }
+      }
+      surfaceContext.putImageData(pixels, 0, 0);
+      context.drawImage(surface, x, y);
+      return;
   }
 
   render(time) {
@@ -774,7 +802,7 @@ export class DenomMatter {
         if (assembled <= 0) return;
         // All letters gain their depth at the same pace as the bright grains.
         this.drawHeroGrain(context, glyph.depthComposite, glyph.x + breath,
-          glyph.y - breath * .5, cohesion * assembled, pointerStrength);
+          glyph.y - breath * .5, cohesion * assembled, pointerStrength * 1.65, true);
         this.drawHeroGrain(context, glyph.canvas, glyph.x + breath, glyph.y - breath * .5,
           cohesion * assembled * .74, pointerStrength);
       });
