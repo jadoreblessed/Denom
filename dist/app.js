@@ -656,7 +656,7 @@ document.querySelectorAll('dialog').forEach(dialog => {
   });
 });
 
-requestAnimationFrame(() => {
+document.fonts.load('600 420px "Denom Display"').catch(() => {}).then(() => requestAnimationFrame(() => {
   try {
     matter = new DenomMatter(document.querySelector('#matter'), { reduced });
     document.body.classList.add('canvas-ready');
@@ -667,5 +667,5 @@ requestAnimationFrame(() => {
   paintScroll();
   matter?.start();
   setTimeout(finishLoading, reduced ? 80 : 420);
-});
+}));
 setTimeout(finishLoading, 3200);

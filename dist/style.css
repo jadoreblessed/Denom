@@ -1,3 +1,11 @@
+@font-face {
+  font-family: "Denom Display";
+  src: url("assets/fonts/denom-gothic.otf") format("opentype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   color-scheme: dark;
   --bg: #0a1a29;
@@ -49,7 +57,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   inset: 0;
   background: linear-gradient(180deg, rgba(7, 18, 28, .12), rgba(9, 22, 34, .07) 54%, #102638 100%), url('assets/galaxy-hero.webp') center / cover no-repeat;
   opacity: 0;
-  transition: opacity .85s ease;
+  transition: opacity 1.25s ease;
 }
 body[data-scene="0"] .ambient::before { opacity: .55; }
 .ambient i { position: absolute; display: block; width: 82vw; height: 82vw; border-radius: 50%; opacity: .46; }
@@ -62,6 +70,7 @@ body[data-scene="0"] .ambient::before { opacity: .55; }
   display: grid;
   place-items: center;
   color: var(--ice);
+  font-family: "Denom Display", sans-serif;
   font-size: clamp(4rem, 15vw, 14rem);
   font-weight: 300;
   letter-spacing: -.08em;
@@ -80,7 +89,7 @@ body[data-scene="0"] .ambient::before { opacity: .55; }
   background: #0a1a29;
   transition: opacity .6s, visibility .6s;
 }
-.loader strong { font-size: clamp(2rem, 5vw, 4.5rem); font-weight: 300; letter-spacing: -.07em; }
+.loader strong { font-family: "Denom Display", sans-serif; font-size: clamp(2rem, 5vw, 4.5rem); font-weight: 600; letter-spacing: .02em; }
 .loader div { width: 210px; height: 1px; background: rgba(151, 224, 255, .18); }
 .loader i { display: block; width: 0; height: 100%; background: var(--azure); animation: load .82s cubic-bezier(.2, .8, .2, 1) forwards; }
 .loaded .loader { opacity: 0; visibility: hidden; }
@@ -98,11 +107,11 @@ body[data-scene="0"] .ambient::before { opacity: .55; }
 }
 .topbar > * { pointer-events: auto; }
 .wordmark, .topbar nav, .glass-wallet { opacity: 0; }
-.loaded .wordmark { animation: interface-in .72s .08s both cubic-bezier(.2,.78,.2,1); }
-.loaded .topbar nav { animation: interface-in .72s .16s both cubic-bezier(.2,.78,.2,1); }
-.loaded .glass-wallet { animation: interface-in .72s .24s both cubic-bezier(.2,.78,.2,1); }
+.loaded .wordmark { animation: interface-in 1.08s .12s both cubic-bezier(.2,.78,.2,1); }
+.loaded .topbar nav { animation: interface-in 1.08s .26s both cubic-bezier(.2,.78,.2,1); }
+.loaded .glass-wallet { animation: interface-in 1.08s .36s both cubic-bezier(.2,.78,.2,1); }
 .wordmark { display: inline-flex; align-items: center; gap: 10px; width: max-content; font-size: 1.15rem; letter-spacing: -.05em; }
-.wordmark b { font-weight: 600; }
+.wordmark b { font-family: "Denom Display", sans-serif; font-weight: 600; letter-spacing: .025em; }
 .wordmark i {
   position: relative;
   width: 20px;
@@ -162,8 +171,8 @@ body[data-scene="0"] .ambient::before { opacity: .55; }
 .glass-wallet svg { position: relative; z-index: 1; width: 18px; height: 18px; fill: none; stroke: #07111a; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .glass-wallet b { position: relative; z-index: 1; font-weight: 600; }
 
-.scene { position: relative; z-index: 3; height: 190svh; }
-.hero-scene { height: 196svh; }
+.scene { position: relative; z-index: 3; height: 207svh; }
+.hero-scene { height: 212svh; }
 .hero-ui {
   background:
     radial-gradient(ellipse 32% 49% at 50% 44%, rgba(40, 143, 184, .13), transparent 83%),
@@ -276,9 +285,9 @@ body[data-scene="0"] .ambient::before { opacity: .55; }
   border-top: 1px solid var(--line-strong);
   opacity: 0;
 }
-.loaded .ca-action { animation: hero-meta-in .78s .28s both cubic-bezier(.18,.78,.2,1); }
-.loaded .social-action { animation: hero-meta-in .78s .38s both cubic-bezier(.18,.78,.2,1); }
-.loaded .scene-footer { animation: hero-meta-in .82s .5s both cubic-bezier(.18,.78,.2,1); }
+.loaded .ca-action { animation: hero-meta-in 1.12s .4s both cubic-bezier(.18,.78,.2,1); }
+.loaded .social-action { animation: hero-meta-in 1.12s .52s both cubic-bezier(.18,.78,.2,1); }
+.loaded .scene-footer { animation: hero-meta-in 1.2s .64s both cubic-bezier(.18,.78,.2,1); }
 .scene-footer p { max-width: 500px; font-size: .9rem; line-height: 1.15; text-transform: uppercase; }
 .scene-footer b { color: #708594; font-size: .68rem; font-weight: 400; letter-spacing: .14em; }
 .unit-index {
@@ -646,7 +655,7 @@ dialog .primary-action { width: max-content; margin-top: 24px; }
   .topbar { left: 14px; right: 12px; top: 12px; grid-template-columns: 1fr auto; }
   .topbar nav { position: absolute; left: -14px; right: -12px; top: 55px; width: calc(100% + 26px); max-width: none; padding: 4px 10px; border-left: 0; border-right: 0; border-radius: 0; }
   .glass-wallet { min-width: 145px; min-height: 45px; font-size: .82rem; }
-  .scene { height: 182svh; }.hero-scene { height: 190svh; }.portal-scene { height: 162svh; }
+  .scene { height: 197svh; }.hero-scene { height: 205svh; }.portal-scene { height: 174svh; }
   .scene-inner { min-height: 600px; }
   .scene-title { font-size: clamp(3rem, 12vw, 5rem); }
   .title-left, .title-right, .title-center { left: 20px; right: 20px; top: 16vh; width: auto; transform: none; text-align: left; }
