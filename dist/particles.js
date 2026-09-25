@@ -55,44 +55,38 @@ function fillKnot(points, light, count, random) {
 }
 
 function fillLivingLattice(points, light, count, random) {
-  // A flowing mineral form suspended inside a slowly turning three-dimensional
-  // lattice. The core and the cage are separate surfaces, not a flat emblem.
-  const coreEnd = Math.floor(count * .69);
+  // A calm volumetric seed inside a precise latitude/longitude cage. Keeping
+  // both surfaces regular makes the final scene read as one designed object.
+  const coreEnd = Math.floor(count * .68);
   for (let index = 0; index < count; index += 1) {
     const cursor = index * 3;
     if (index < coreEnd) {
       const t = random() * 2 - 1;
-      const theta = TAU * random() + t * 1.35;
-      const waist = Math.pow(Math.max(0, 1 - t * t), .7);
-      const lobe = Math.sin(Math.PI * (.18 + .64 * Math.abs(t)));
-      const crease = Math.sin(3 * theta - 3.5 * t);
-      const groove = Math.exp(-11 * Math.sin(theta - 2.4 * t - .6) ** 2);
-      const radius = (.048 + .16 * lobe) * (1 + .13 * crease - .27 * groove);
+      const theta = TAU * random() + t * .72;
+      const envelope = Math.pow(Math.max(0, 1 - t * t), .57);
+      const fold = Math.sin(3 * theta + t * 2.1);
+      const radius = (.035 + .165 * envelope) * (1 + .055 * fold);
       const depth = Math.sin(theta);
-      points[cursor] = .038 * Math.sin(t * Math.PI * 1.3) + radius * Math.cos(theta);
-      points[cursor + 1] = .34 * t + .012 * waist * Math.sin(theta * 2 + t);
-      points[cursor + 2] = radius * depth * 1.18 + .018 * waist * Math.cos(3 * theta + 4 * t);
-      // Rear grains stay blue; highlights catch the folds rather than filling
-      // the whole shell with uniform white.
-      light[index] = Math.round(255 * clamp(.41 + .22 * depth + .1 * crease - .12 * t - .11 * groove));
+      points[cursor] = .024 * Math.sin(t * Math.PI * 1.5) + radius * Math.cos(theta);
+      points[cursor + 1] = .315 * t + .006 * envelope * Math.sin(theta * 2);
+      points[cursor + 2] = radius * depth * 1.12;
+      light[index] = Math.round(255 * clamp(.42 + .24 * depth + .055 * fold - .1 * t));
     } else {
       const latticeIndex = index - coreEnd;
-      const mode = latticeIndex % 3;
-      const strandCount = mode === 0 ? 10 : 9;
-      const strandIndex = Math.floor(latticeIndex / 3);
+      const mode = latticeIndex % 2;
+      const strandCount = mode === 0 ? 12 : 9;
+      const strandIndex = Math.floor(latticeIndex / 2);
       const strand = strandIndex % strandCount;
       const step = Math.floor(strandIndex / strandCount);
-      const steps = Math.ceil((count - coreEnd) / (3 * strandCount));
-      const u = (step + random() * .32) / steps;
-      const t = mode === 1 ? (strand - 4) / 5 : u * 2 - 1;
-      const angle = mode === 1 ? TAU * u
-        : mode === 0 ? strand * TAU / 10 + t * .22
-          : strand * TAU / 9 + t * .85;
-      const taper = .87 + .13 * (1 - t * t);
-      points[cursor] = .335 * taper * Math.cos(angle);
-      points[cursor + 1] = .4 * t + (mode === 1 ? .009 * Math.sin(angle * 2 + t) : 0);
-      points[cursor + 2] = .255 * taper * Math.sin(angle);
-      light[index] = Math.round(255 * clamp(.4 + .18 * Math.sin(angle) + (mode === 2 ? .065 : 0)));
+      const steps = Math.ceil((count - coreEnd) / (2 * strandCount));
+      const u = (step + random() * .18) / Math.max(1, steps - 1);
+      const t = mode === 0 ? u * 2 - 1 : -.8 + strand / (strandCount - 1) * 1.6;
+      const angle = mode === 0 ? strand * TAU / strandCount + t * .12 : TAU * u;
+      const ring = mode === 0 ? Math.sqrt(Math.max(0, 1 - t * t)) : Math.sqrt(Math.max(0, 1 - t * t));
+      points[cursor] = .35 * ring * Math.cos(angle);
+      points[cursor + 1] = .415 * t;
+      points[cursor + 2] = .27 * ring * Math.sin(angle);
+      light[index] = Math.round(255 * clamp(.39 + .2 * Math.sin(angle) + (mode === 1 ? .035 : 0)));
     }
   }
 }
@@ -115,7 +109,7 @@ export class DenomMatter {
     const baseCount = innerWidth < 680 ? (cores < 6 ? 850 : 1100) : innerWidth < 1100 ? (cores < 6 ? 1450 : 1850) : (cores < 6 ? 1950 : 2350);
     this.heroExtra = innerWidth < 680 ? 120 : innerWidth < 1100 ? 180 : 240;
     this.count = baseCount + this.heroExtra;
-    this.frameInterval = innerWidth < 680 ? 29 : 15;
+    this.frameInterval = innerWidth < 680 ? 32 : 24;
     this.slowFrames = 0;
     this.fastFrames = 0;
     this.seed = new Float32Array(this.count);
@@ -126,7 +120,7 @@ export class DenomMatter {
     this.radius = new Float32Array(this.count);
     this.tint = new Uint8Array(this.count);
     this.variant = new Uint8Array(this.count);
-    this.detailCount = innerWidth < 680 ? 4600 : innerWidth < 1100 ? 6500 : 8500;
+    this.detailCount = innerWidth < 680 ? 4200 : innerWidth < 1100 ? 6000 : 7200;
     this.detailPointA = new Float32Array(3);
     this.detailPointB = new Float32Array(3);
     this.detailCos = new Float32Array(this.detailCount);
@@ -357,6 +351,8 @@ export class DenomMatter {
     this.heroPointerDrawnAt = -Infinity;
     this.heroPointerX = NaN;
     this.heroPointerY = NaN;
+    this.heroPointerEngaged = false;
+    this.heroHitGrid = null;
     this.heroDust = this.heroGlyphs.map((glyph, glyphIndex) => {
       const mask = this.textPoints(glyph.value, glyph.size, glyph.weight);
       const scale = glyph.width * frame.unit / mask.halfWidth;
@@ -548,7 +544,7 @@ export class DenomMatter {
       z += .008 * Math.cos(rotation.tide + y * 9);
     }
     if (rotation.living) {
-      if (cursor < shape.length * .69) {
+      if (cursor < shape.length * .68) {
         const breathe = 1 + .052 * rotation.pulse * (1 - Math.abs(y) * 1.7);
         x = x * breathe + .012 * rotation.sway * (1 - Math.abs(y));
         z = z * breathe + .014 * rotation.sway * x;
@@ -623,7 +619,7 @@ export class DenomMatter {
       } else if (drawTime < 17) {
         this.fastFrames += 1;
         this.slowFrames = 0;
-        if (this.fastFrames >= 24) this.frameInterval = this.mobile ? 29 : 15;
+        if (this.fastFrames >= 24) this.frameInterval = this.mobile ? 32 : 24;
       } else {
         this.slowFrames = 0;
         this.fastFrames = 0;
@@ -711,6 +707,10 @@ export class DenomMatter {
 
   drawHeroDust(context, time) {
     const paths = Array.from({ length: 5 }, () => new Path2D());
+    const hitCell = 8;
+    const hitColumns = Math.ceil(this.width / hitCell);
+    const hitRows = Math.ceil(this.height / hitCell);
+    const hitGrid = new Uint8Array(hitColumns * hitRows);
     const yaw = .14;
     const pitch = -.07;
     const cy = Math.cos(yaw);
@@ -732,6 +732,10 @@ export class DenomMatter {
         const y = glyph.centerY + projectedY * perspective;
         glyph.screenX[index] = x;
         glyph.screenY[index] = y;
+        if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
+          const hitIndex = Math.floor(y / hitCell) * hitColumns + Math.floor(x / hitCell);
+          if (hitGrid[hitIndex] < 255) hitGrid[hitIndex] += 1;
+        }
         const size = glyph.sizes[index] * (1 + localZ / 350);
         const path = paths[glyph.tones[index]];
         if (glyph.facets[index] === 1) {
@@ -758,6 +762,27 @@ export class DenomMatter {
       context.fill(paths[tone]);
     }
     context.globalAlpha = 1;
+    this.heroHitCell = hitCell;
+    this.heroHitColumns = hitColumns;
+    this.heroHitRows = hitRows;
+    this.heroHitGrid = hitGrid;
+  }
+
+  heroHitTest(x, y) {
+    if (!this.heroHitGrid || x < 0 || y < 0 || x >= this.width || y >= this.height) return false;
+    const column = Math.floor(x / this.heroHitCell);
+    const row = Math.floor(y / this.heroHitCell);
+    let density = 0;
+    for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
+      const sampleY = row + offsetY;
+      if (sampleY < 0 || sampleY >= this.heroHitRows) continue;
+      for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+        const sampleX = column + offsetX;
+        if (sampleX < 0 || sampleX >= this.heroHitColumns) continue;
+        density += this.heroHitGrid[sampleY * this.heroHitColumns + sampleX];
+      }
+    }
+    return density >= 3;
   }
 
   paintHeroDust(context, time, alpha) {
@@ -768,21 +793,21 @@ export class DenomMatter {
     }
     let hovered = false;
     if (this.pointer.active && this.local < .12) {
-      const radius = this.mobile ? 112 : 170;
+      const radius = this.mobile ? 76 : 104;
       const px = this.pointer.x;
       const py = this.pointer.y;
       if ((Math.abs(px - this.heroPointerX) > 2 || Math.abs(py - this.heroPointerY) > 2)
-        && time - this.heroPointerDrawnAt > 45) {
+        && time - this.heroPointerDrawnAt > 58) {
         const local = this.heroHoverContext;
         local.clearRect(0, 0, this.width, this.height);
         local.drawImage(this.heroDustCanvas, 0, 0, this.width, this.height);
-        this.drawHeroPointer(local, radius);
+        this.heroPointerEngaged = this.heroHitTest(px, py) && this.drawHeroPointer(local, radius);
         this.heroPointerX = px;
         this.heroPointerY = py;
         this.heroPointerDrawnAt = time;
       }
-      hovered = this.heroPointerDrawnAt > 0;
-    }
+      hovered = this.heroPointerEngaged;
+    } else this.heroPointerEngaged = false;
     context.globalAlpha = alpha;
     context.drawImage(hovered ? this.heroHoverCanvas : this.heroDustCanvas, 0, 0, this.width, this.height);
     context.globalAlpha = 1;
@@ -792,7 +817,9 @@ export class DenomMatter {
     const px = this.pointer.x;
     const py = this.pointer.y;
     const paths = Array.from({ length: 5 }, () => new Path2D());
+    const scatterPaths = Array.from({ length: 5 }, () => new Path2D());
     const erased = new Path2D();
+    let affected = 0;
     for (const glyph of this.heroDust) {
       for (let index = 0; index < glyph.count; index += 1) {
         const originalX = glyph.screenX[index];
@@ -802,21 +829,25 @@ export class DenomMatter {
         const squared = dx * dx + dy * dy;
         const reach = radius * (.72 + ((index * .61803398875 + glyph.index * .37) % 1) * .42);
         if (squared >= reach * reach) continue;
+        affected += 1;
         const distance = Math.sqrt(squared);
         const angle = index * 2.399963229728653;
         const nx = distance > .01 ? dx / distance : Math.cos(angle);
         const ny = distance > .01 ? dy / distance : Math.sin(angle);
-        const variation = .72 + ((index * .75487766625) % 1) * .58;
-        const core = radius * (.32 + ((index * .41421356237 + glyph.index * .19) % 1) * .15);
-        const force = (Math.max(0, core - distance)
-          + (1 - distance / reach) ** 1.7 * (glyph.depths[index] ? 66 : 54)) * variation;
-        const swirl = (index % 2 ? 1 : -1) * force * .16;
+        const variation = .78 + ((index * .75487766625) % 1) * .34;
+        const core = radius * (.46 + ((index * .41421356237 + glyph.index * .19) % 1) * .18);
+        const force = (Math.max(0, core - distance) * .82
+          + (1 - distance / reach) ** 1.8 * (glyph.depths[index] ? 24 : 19)) * variation;
+        const swirl = (index % 2 ? 1 : -1) * force * .11;
         const x = originalX + nx * force + -ny * swirl;
         const y = originalY + ny * force + nx * swirl;
         const size = glyph.sizes[index] * (1 + glyph.positions[index * 3 + 2] / 350);
         const cover = size * .7 + .65;
         erased.rect(originalX - cover, originalY - cover, cover * 2, cover * 2);
-        const path = paths[glyph.tones[index]];
+        // The centre stays empty. Only its irregular falloff is displaced,
+        // which reads as a puncture in the material instead of a cursor halo.
+        if (distance < core) continue;
+        const path = distance < core * 1.42 ? scatterPaths[glyph.tones[index]] : paths[glyph.tones[index]];
         if (glyph.facets[index] === 1) {
           path.moveTo(x, y - size * .65);
           path.lineTo(x + size * .65, y);
@@ -841,8 +872,11 @@ export class DenomMatter {
       context.globalAlpha = opacity[tone];
       context.fillStyle = colors[tone];
       context.fill(paths[tone]);
+      context.globalAlpha = opacity[tone] * .48;
+      context.fill(scatterPaths[tone]);
     }
     context.globalAlpha = 1;
+    return affected > 0;
   }
 
   render(time) {
@@ -964,20 +998,22 @@ export class DenomMatter {
       }
 
       let proximity = 0;
-      if (this.pointer.active && scene === 0 && rawTransition < .45) {
+      let cursorAlpha = 1;
+      if (this.pointer.active && this.heroPointerEngaged && scene === 0 && rawTransition < .45) {
         const dx = x - this.pointer.x;
         const dy = y - this.pointer.y;
         const distance2 = dx * dx + dy * dy;
-        const baseRadius = this.mobile ? 115 : 170;
-        const radius = baseRadius * (.74 + fract(seed * 13.37) * .38);
+        const baseRadius = this.mobile ? 76 : 104;
+        const radius = baseRadius * (.76 + fract(seed * 13.37) * .3);
         if (distance2 < radius * radius) {
           const distance = Math.sqrt(distance2) || 1;
-          proximity = (1 - distance / radius) ** 1.45 * (1 - transition);
-          const core = baseRadius * (.31 + fract(seed * 19.73) * .16);
-          const offset = (Math.max(0, core - distance) + proximity * 54) * (.76 + seed * .48);
-          const swirl = (index % 2 ? 1 : -1) * offset * .14;
+          proximity = (1 - distance / radius) ** 1.65 * (1 - transition);
+          const core = baseRadius * (.43 + fract(seed * 19.73) * .17);
+          const offset = (Math.max(0, core - distance) * .12 + proximity * 8) * (.82 + seed * .32);
+          const swirl = (index % 2 ? 1 : -1) * offset * .08;
           x += dx / distance * offset - dy / distance * swirl;
           y += dy / distance * offset + dx / distance * swirl;
+          cursorAlpha = smooth((distance - core * .5) / (core * .5));
         }
       }
 
@@ -987,7 +1023,7 @@ export class DenomMatter {
       const brightFleck = index % 31 === 0;
       const heroAlpha = (0.5 + seed * 0.08 + depthLight * 0.07) * (scene === 0 && rawTransition === 0 ? particleIntro : 1) * twinkle;
       const grainAlpha = (0.13 + seed * 0.05 + depthLight * 0.09 + (brightFleck ? 0.2 : 0)) * mix(.55, 1.28, materialLight);
-      const alpha = mix(heroAlpha, grainAlpha, objectMix);
+      const alpha = mix(heroAlpha, grainAlpha, objectMix) * cursorAlpha;
       const spriteSize = particleRadius * mix(3.75, brightFleck ? 4.2 : 1.9, objectMix);
       // Reserve soft sprites for highlights. Batch the rest into five tones:
       // thousands of individual drawImage calls stalled scroll rendering.

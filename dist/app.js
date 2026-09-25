@@ -19,6 +19,8 @@ const toast = document.querySelector('#toast');
 let matter;
 let metrics = [];
 let scheduled = false;
+let targetScrollY = scrollY;
+let visualScrollY = scrollY;
 let toastTimer;
 let loadingFinished = false;
 const chain = new DenomChain();
@@ -94,13 +96,17 @@ function measure() {
 
 function paintScroll() {
   scheduled = false;
-  const y = scrollY;
+  targetScrollY = scrollY;
+  const distanceToScroll = targetScrollY - visualScrollY;
+  visualScrollY += reduced ? distanceToScroll : distanceToScroll * .14;
+  if (Math.abs(distanceToScroll) < .35) visualScrollY = targetScrollY;
+  const y = visualScrollY;
   let active = 0;
   for (let index = 0; index < metrics.length; index += 1) {
     if (y >= metrics[index].top - 2) active = index;
   }
   const local = clamp((y - metrics[active].top) / metrics[active].travel);
-  const nextEnter = !reduced && active < scenes.length - 1 ? smooth((local - .66) / .28) : 0;
+  const nextEnter = !reduced && active < scenes.length - 1 ? smooth((local - .61) / .34) : 0;
   scenes.forEach((scene, index) => {
     const upcoming = index === active + 1;
     if (index !== active && !upcoming && scene.dataset.inactive === 'true') return;
@@ -109,7 +115,7 @@ function paintScroll() {
     const inner = scene.querySelector('.scene-inner');
     let opacity = 0;
     if (index === active) {
-      const exit = active === scenes.length - 1 ? 1 : 1 - smooth((local - 0.51) / 0.28);
+      const exit = active === scenes.length - 1 ? 1 : 1 - smooth((local - 0.5) / 0.34);
       opacity = exit;
     } else if (upcoming) {
       opacity = nextEnter;
@@ -118,17 +124,17 @@ function paintScroll() {
     inner.style.opacity = opacity.toFixed(3);
     inner.style.pointerEvents = opacity > 0.55 ? 'auto' : 'none';
 
-    const enterBase = reduced ? 1 : index === active ? smooth((local + 0.06) / 0.15) : upcoming ? nextEnter : 0;
-    const leaveBase = reduced || index !== active || active === scenes.length - 1 ? 0 : smooth((local - 0.51) / 0.28);
+    const enterBase = reduced ? 1 : index === active ? smooth((local + 0.05) / 0.23) : upcoming ? nextEnter : 0;
+    const leaveBase = reduced || index !== active || active === scenes.length - 1 ? 0 : smooth((local - 0.5) / 0.34);
     const motion = landingMotion[index];
     motion.words.forEach((word, wordIndex) => {
-      const stagger = Math.min(0.18, wordIndex * 0.022);
+      const stagger = Math.min(0.15, wordIndex * 0.018);
       const enter = smooth((enterBase - stagger) / Math.max(0.01, 1 - stagger));
       const exitStagger = Math.min(0.14, wordIndex * 0.014);
       const leave = smooth((leaveBase - exitStagger) / Math.max(0.01, 1 - exitStagger));
       const visible = enter * (1 - leave);
       word.style.opacity = visible.toFixed(3);
-      word.style.transform = reduced ? 'none' : `translate(${(leave * (wordIndex % 2 ? 90 : -90)).toFixed(2)}px, ${((1 - enter) * 35 - leave * 32).toFixed(2)}%) rotate(${(leave * (wordIndex % 2 ? 5 : -5)).toFixed(2)}deg)`;
+      word.style.transform = reduced ? 'none' : `translate3d(${(leave * (wordIndex % 2 ? 72 : -72)).toFixed(2)}px, ${((1 - enter) * 30 - leave * 26).toFixed(2)}%, 0) rotateZ(${(leave * (wordIndex % 2 ? 4 : -4)).toFixed(2)}deg)`;
     });
     motion.details.forEach((detail, detailIndex) => {
       const stagger = Math.min(0.24, detailIndex * 0.06);
@@ -140,9 +146,11 @@ function paintScroll() {
   });
   if (document.body.dataset.scene !== String(active)) document.body.dataset.scene = String(active);
   matter?.setScroll(active, local);
+  if (Math.abs(targetScrollY - visualScrollY) >= .35) queueScroll();
 }
 
 function queueScroll() {
+  targetScrollY = scrollY;
   if (!scheduled) {
     scheduled = true;
     requestAnimationFrame(paintScroll);
@@ -151,6 +159,8 @@ function queueScroll() {
 
 addEventListener('scroll', queueScroll, { passive: true });
 addEventListener('resize', () => {
+  visualScrollY = scrollY;
+  targetScrollY = scrollY;
   measure();
   paintScroll();
 }, { passive: true });

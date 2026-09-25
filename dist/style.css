@@ -180,6 +180,7 @@ body[data-scene="0"] .ambient::before { opacity: .55; }
   overflow: hidden;
   padding: var(--pad);
   opacity: 0;
+  contain: layout paint;
 }
 .scene-title {
   position: absolute;
@@ -203,7 +204,11 @@ body[data-scene="0"] .ambient::before { opacity: .55; }
   display: inline-block;
   opacity: 0;
   transform-origin: 50% 100%;
+  backface-visibility: hidden;
 }
+.scene:not([data-inactive="true"]) .scene-inner,
+.scene:not([data-inactive="true"]) .motion-word-inner,
+.scene:not([data-inactive="true"]) .motion-detail { will-change: transform, opacity; }
 .motion-detail {
   opacity: var(--motion-opacity, 0);
 }
