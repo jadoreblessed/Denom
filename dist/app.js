@@ -106,7 +106,10 @@ function paintScroll() {
     if (y >= metrics[index].top - 2) active = index;
   }
   const local = clamp((y - metrics[active].top) / metrics[active].travel);
-  const nextEnter = !reduced && active < scenes.length - 1 ? smooth((local - .61) / .34) : 0;
+  // One shared crossfade keeps copy and matter on the same beat. The previous
+  // combination faded the fixed panel and every child a second time, leaving
+  // a nearly blank frame in the middle of a section hand-off.
+  const nextEnter = !reduced && active < scenes.length - 1 ? smooth((local - .48) / .42) : 0;
   scenes.forEach((scene, index) => {
     const upcoming = index === active + 1;
     if (index !== active && !upcoming && scene.dataset.inactive === 'true') return;
@@ -115,7 +118,7 @@ function paintScroll() {
     const inner = scene.querySelector('.scene-inner');
     let opacity = 0;
     if (index === active) {
-      const exit = active === scenes.length - 1 ? 1 : 1 - smooth((local - 0.5) / 0.34);
+      const exit = active === scenes.length - 1 ? 1 : 1 - nextEnter;
       opacity = exit;
     } else if (upcoming) {
       opacity = nextEnter;
@@ -124,24 +127,20 @@ function paintScroll() {
     inner.style.opacity = opacity.toFixed(3);
     inner.style.pointerEvents = opacity > 0.55 ? 'auto' : 'none';
 
-    const enterBase = reduced ? 1 : index === active ? smooth((local + 0.05) / 0.23) : upcoming ? nextEnter : 0;
-    const leaveBase = reduced || index !== active || active === scenes.length - 1 ? 0 : smooth((local - 0.5) / 0.34);
+    const enterBase = reduced || index === active ? 1 : upcoming ? nextEnter : 0;
     const motion = landingMotion[index];
     motion.words.forEach((word, wordIndex) => {
       const stagger = Math.min(0.15, wordIndex * 0.018);
       const enter = smooth((enterBase - stagger) / Math.max(0.01, 1 - stagger));
-      const exitStagger = Math.min(0.14, wordIndex * 0.014);
-      const leave = smooth((leaveBase - exitStagger) / Math.max(0.01, 1 - exitStagger));
-      const visible = enter * (1 - leave);
-      word.style.opacity = visible.toFixed(3);
-      word.style.transform = reduced ? 'none' : `translate3d(${(leave * (wordIndex % 2 ? 72 : -72)).toFixed(2)}px, ${((1 - enter) * 30 - leave * 26).toFixed(2)}%, 0) rotateZ(${(leave * (wordIndex % 2 ? 4 : -4)).toFixed(2)}deg)`;
+      // The panel opacity owns the fade; words only supply spatial staging.
+      word.style.opacity = (upcoming ? .74 + enter * .26 : 1).toFixed(3);
+      word.style.transform = reduced ? 'none' : `translate3d(${((1 - enter) * (wordIndex % 2 ? 34 : -34)).toFixed(2)}px, ${((1 - enter) * 18).toFixed(2)}%, 0) rotateZ(${((1 - enter) * (wordIndex % 2 ? 1.8 : -1.8)).toFixed(2)}deg)`;
     });
     motion.details.forEach((detail, detailIndex) => {
       const stagger = Math.min(0.24, detailIndex * 0.06);
       const enter = smooth((enterBase - stagger) / Math.max(0.01, 1 - stagger));
-      const leave = smooth((leaveBase - stagger * 0.5) / Math.max(0.01, 1 - stagger * 0.5));
-      detail.style.setProperty('--motion-opacity', (enter * (1 - leave)).toFixed(3));
-      detail.style.setProperty('--motion-y', `${((1 - enter) * 24 - leave * 18).toFixed(2)}px`);
+      detail.style.setProperty('--motion-opacity', (upcoming ? .72 + enter * .28 : 1).toFixed(3));
+      detail.style.setProperty('--motion-y', `${((1 - enter) * 18).toFixed(2)}px`);
     });
   });
   if (document.body.dataset.scene !== String(active)) document.body.dataset.scene = String(active);
