@@ -603,6 +603,8 @@ dt { color: #708695; } dd { margin: 0; text-align: right; }
 .pair-list > button.active, .pair-list > button:hover { background: linear-gradient(90deg, rgba(66, 217, 255, .1), rgba(66, 217, 255, .02)); }
 .pair-list > button.active::before { transform: scaleY(1); }
 .pair-list strong { font-weight: 500; }.pair-list small { display: block; color: #6d8392; font-weight: 400; }.pair-list > button > b { color: #9ab0bd; font-weight: 400; }
+.pair-empty { display: grid; place-items: center; min-height: 260px; padding: 40px; color: #78909e; text-align: center; }
+.pair-empty strong { color: #dce9ee; font-size: 1rem; }.pair-empty small { max-width: 260px; margin-top: 7px; line-height: 1.55; }
 .swap-panel { padding: 24px; }
 .swap-panel > span { color: var(--azure); font-size: .7rem; letter-spacing: .14em; }
 .swap-panel h3 { margin: 20px 0 5px; font-size: 2rem; font-weight: 400; letter-spacing: -.04em; }

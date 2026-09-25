@@ -11,9 +11,9 @@ const CHAIN = {
   explorer: 'https://explorer.testnet.chain.robinhood.com'
 };
 const KEYS = {
-  factory: `denom.factory.${CHAIN.id}`,
-  quote: `denom.quote.${CHAIN.id}`,
-  deploymentBlock: `denom.deploymentBlock.${CHAIN.id}`
+  factory: `denom.v2.factory.${CHAIN.id}`,
+  quote: `denom.v2.quote.${CHAIN.id}`,
+  deploymentBlock: `denom.v2.deploymentBlock.${CHAIN.id}`
 };
 const WAD = 10n ** 18n;
 
@@ -51,6 +51,8 @@ export class DenomChain {
     this.marketAbi = null;
     this.tokenAbi = null;
     this.quoteAbi = null;
+    this.quoteAssetAbi = null;
+    this.baseDecimals = 6;
   }
 
   get configured() {
@@ -58,16 +60,18 @@ export class DenomChain {
   }
 
   async prepare() {
-    const [factory, market, token, quote, deployment] = await Promise.all([
-      artifact('DenomFactory'), artifact('DenomMarket'), artifact('DenomToken'), artifact('MockQuoteToken'),
+    const [factory, market, token, quoteAsset, quote, deployment] = await Promise.all([
+      artifact('DenomFactory'), artifact('DenomMarket'), artifact('DenomToken'), artifact('DenomQuoteAsset'), artifact('MockQuoteToken'),
       fetch('protocol.json', { cache: 'no-store' }).then(response => response.ok ? response.json() : {}).catch(() => ({}))
     ]);
     this.factoryArtifact = factory;
     this.quoteArtifact = quote;
+    this.quoteAssetArtifact = quoteAsset;
     this.factoryAbi = factory.abi;
     this.marketAbi = market.abi;
     this.tokenAbi = token.abi;
     this.quoteAbi = quote.abi;
+    this.quoteAssetAbi = quoteAsset.abi;
     if (Number(deployment.chainId) === CHAIN.id) {
       if (!this.factoryAddress && isAddress(deployment.factory)) this.factoryAddress = deployment.factory;
       if (!this.quoteAddress && isAddress(deployment.quoteToken)) this.quoteAddress = deployment.quoteToken;
@@ -101,7 +105,7 @@ export class DenomChain {
       .deploy('DENOM Test USDG', 'tUSDG', 6);
     await quote.waitForDeployment();
     const factory = await new ContractFactory(this.factoryArtifact.abi, this.factoryArtifact.bytecode, this.signer)
-      .deploy(this.account);
+      .deploy(this.account, await quote.getAddress());
     await factory.waitForDeployment();
     this.quoteAddress = await quote.getAddress();
     this.factoryAddress = await factory.getAddress();
@@ -129,6 +133,84 @@ export class DenomChain {
     return Promise.all(addresses.map((address, index) => this.loadMarket(address, index)));
   }
 
+  async loadQuoteAssets() {
+    if (!this.configured || !this.factoryAbi) return [];
+    const base = new Contract(this.quoteAddress, this.quoteAbi, this.readProvider);
+    const [baseName, baseTicker, baseDecimals] = await Promise.all([base.name(), base.symbol(), base.decimals()]);
+    this.baseDecimals = Number(baseDecimals);
+    const baseAsset = {
+      id: 'base', address: this.quoteAddress, creator: '', name: baseName, ticker: baseTicker,
+      code: 'USDG', description: 'Base settlement asset', logo: 'assets/icons/usdg.svg',
+      referencePrice: 1, reserve: 0, volume: 0, supply: 0, decimals: Number(baseDecimals), isBase: true
+    };
+    const factory = new Contract(this.factoryAddress, this.factoryAbi, this.readProvider);
+    const count = Number(await factory.quoteAssetCount());
+    const addresses = await Promise.all(Array.from({ length: count }, (_, index) => factory.quoteAssets(index)));
+    const custom = await Promise.all(addresses.map((address, index) => this.loadQuoteAsset(address, index)));
+    return [baseAsset, ...custom];
+  }
+
+  async loadQuoteAsset(address, index = 0) {
+    const asset = new Contract(address, this.quoteAssetAbi, this.readProvider);
+    const [creator, name, ticker, code, metadataURI, referencePrice, reserve, volume, supply] = await Promise.all([
+      asset.creator(), asset.name(), asset.symbol(), asset.code(), asset.metadataURI(), asset.referencePrice(),
+      asset.reserveBalance(), asset.volume(), asset.totalSupply()
+    ]);
+    const metadata = metadataFrom(metadataURI, ticker);
+    return {
+      id: index, address, creator, name, ticker, code,
+      description: metadata.description || '', logo: metadata.image || logoData(ticker),
+      referencePrice: Number(formatUnits(referencePrice, 18)),
+      reserve: Number(formatUnits(reserve, this.baseDecimals)), volume: Number(formatUnits(volume, this.baseDecimals)),
+      supply: Number(formatUnits(supply, 18)), decimals: 18, isBase: false
+    };
+  }
+
+  async createQuoteAsset({ name, ticker, code, description = '', referencePrice }) {
+    if (!this.signer) await this.connect();
+    if (!this.configured) throw new Error('Deploy the protocol before creating a unit.');
+    const factory = new Contract(this.factoryAddress, this.factoryAbi, this.signer);
+    const metadataURI = `data:application/json,${encodeURIComponent(JSON.stringify({
+      name, symbol: ticker, description, image: logoData(ticker)
+    }))}`;
+    const transaction = await factory.createQuoteAsset(
+      name, ticker, code, metadataURI, parseUnits(String(referencePrice), 18)
+    );
+    const receipt = await transaction.wait();
+    const created = receipt.logs.map(log => {
+      try { return factory.interface.parseLog(log); } catch { return null; }
+    }).find(event => event?.name === 'QuoteAssetCreated');
+    return created ? { address: created.args.quoteAsset, receipt } : { receipt };
+  }
+
+  async previewQuoteSwap(assetAddress, mode, amount) {
+    if (!assetAddress || !Number(amount)) return 0;
+    if (assetAddress.toLowerCase() === this.quoteAddress.toLowerCase()) return Number(amount);
+    const asset = new Contract(assetAddress, this.quoteAssetAbi, this.readProvider);
+    const raw = parseUnits(String(amount), mode === 'buy' ? this.baseDecimals : 18);
+    const output = mode === 'buy' ? await asset.previewBuy(raw) : await asset.previewSell(raw);
+    return Number(formatUnits(output, mode === 'buy' ? 18 : this.baseDecimals));
+  }
+
+  async swapQuote(assetAddress, mode, amount, slippageBps = 100) {
+    if (!this.signer) await this.connect();
+    if (!assetAddress || assetAddress.toLowerCase() === this.quoteAddress.toLowerCase()) {
+      throw new Error('USDG is already the base settlement asset.');
+    }
+    const asset = new Contract(assetAddress, this.quoteAssetAbi, this.signer);
+    if (mode === 'buy') {
+      const raw = parseUnits(String(amount), this.baseDecimals);
+      const expected = await asset.previewBuy(raw);
+      const base = new Contract(this.quoteAddress, this.quoteAbi, this.signer);
+      const allowance = await base.allowance(this.account, assetAddress);
+      if (allowance < raw) await (await base.approve(assetAddress, raw)).wait();
+      return (await asset.buy(raw, expected * BigInt(10_000 - slippageBps) / 10_000n)).wait();
+    }
+    const raw = parseUnits(String(amount), 18);
+    const expected = await asset.previewSell(raw);
+    return (await asset.sell(raw, expected * BigInt(10_000 - slippageBps) / 10_000n)).wait();
+  }
+
   async loadMarket(address, index = 0) {
     const market = new Contract(address, this.marketAbi, this.readProvider);
     const [tokenAddress, creator, quoteToken, unit, metadataURI, price, progress, reserve, volume, supply, maxSupply, fee] = await Promise.all([
@@ -137,7 +219,16 @@ export class DenomChain {
       market.maxSupply(), market.creatorFeeBps()
     ]);
     const token = new Contract(tokenAddress, this.tokenAbi, this.readProvider);
-    const [name, ticker] = await Promise.all([token.name(), token.symbol()]);
+    const quoteContract = new Contract(quoteToken, this.quoteAbi, this.readProvider);
+    const [name, ticker, quoteDecimals, quoteSymbol] = await Promise.all([
+      token.name(), token.symbol(), quoteContract.decimals(), quoteContract.symbol()
+    ]);
+    let quoteReference = 1;
+    if (quoteToken.toLowerCase() !== this.quoteAddress.toLowerCase()) {
+      try {
+        quoteReference = Number(formatUnits(await new Contract(quoteToken, this.quoteAssetAbi, this.readProvider).referencePrice(), 18));
+      } catch {}
+    }
     const metadata = metadataFrom(metadataURI, ticker);
     const numericPrice = Number(formatUnits(price, 18));
     const numericSupply = Number(formatUnits(supply, 18));
@@ -154,10 +245,13 @@ export class DenomChain {
       logo: metadata.image || logoData(ticker),
       description: metadata.description || '',
       price: numericPrice,
-      cap: numericPrice * numericSupply,
+      cap: numericPrice * numericSupply * quoteReference,
       curve: Number(progress) / 100,
-      volume: Number(formatUnits(volume, 6)),
-      reserve: Number(formatUnits(reserve, 6)),
+      volume: Number(formatUnits(volume, quoteDecimals)),
+      reserve: Number(formatUnits(reserve, quoteDecimals)),
+      quoteDecimals: Number(quoteDecimals),
+      quoteSymbol,
+      quoteReference,
       supply: numericSupply,
       maxSupply: Number(formatUnits(maxSupply, 18)),
       creatorFee: Number(fee) / 100,
@@ -165,7 +259,7 @@ export class DenomChain {
     };
   }
 
-  async launch({ name, ticker, unit, description = '', creatorFee = 0 }) {
+  async launch({ name, ticker, unit, description = '', creatorFee = 0, quoteToken = this.quoteAddress }) {
     if (!this.signer) await this.connect();
     if (!this.configured) throw new Error('Deploy the protocol before launching a market.');
     const factory = new Contract(this.factoryAddress, this.factoryAbi, this.signer);
@@ -173,7 +267,7 @@ export class DenomChain {
       name, symbol: ticker, description, image: logoData(ticker)
     }))}`;
     const transaction = await factory.createMarket(
-      this.quoteAddress, name, ticker, unit, metadataURI,
+      quoteToken, name, ticker, unit, metadataURI,
       parseUnits('0.000001', 18), parseUnits('0.00000000001', 18), parseUnits('1000000000', 18),
       Math.round(Number(creatorFee) * 100)
     );
@@ -185,9 +279,9 @@ export class DenomChain {
     return created ? { market: created.args.market, token: created.args.token, receipt } : { receipt };
   }
 
-  async quoteBalance() {
+  async quoteBalance(tokenAddress = this.quoteAddress) {
     if (!this.account || !this.configured) return 0;
-    const quote = new Contract(this.quoteAddress, this.quoteAbi, this.readProvider);
+    const quote = new Contract(tokenAddress, this.quoteAbi, this.readProvider);
     return Number(formatUnits(await quote.balanceOf(this.account), await quote.decimals()));
   }
 
@@ -223,7 +317,7 @@ export class DenomChain {
     return logs.map(log => ({
       buy: log.args.isBuy,
       trader: log.args.trader,
-      quote: Number(formatUnits(log.args.quoteAmount, 6)),
+      quote: Number(formatUnits(log.args.quoteAmount, marketInfo.quoteDecimals ?? 6)),
       tokens: Number(formatUnits(log.args.tokenAmount, 18)),
       price: log.args.priceAfter,
       supply: log.args.supplyAfter,
@@ -237,7 +331,7 @@ export class DenomChain {
     const values = await Promise.all(markets.filter(market => market.source === 'chain').map(async market => {
       const token = new Contract(market.address, this.tokenAbi, this.readProvider);
       const balance = Number(formatUnits(await token.balanceOf(this.account), 18));
-      return { ...market, balance, value: balance * market.price };
+      return { ...market, balance, value: balance * market.price * (market.quoteReference || 1) };
     }));
     return values.filter(item => item.balance > 0);
   }
@@ -246,7 +340,7 @@ export class DenomChain {
     if (!this.account) return [];
     return Promise.all(markets.filter(market => market.source === 'chain' && market.creator.toLowerCase() === this.account.toLowerCase()).map(async market => {
       const contract = new Contract(market.marketAddress, this.marketAbi, this.readProvider);
-      return { ...market, claimable: Number(formatUnits(await contract.creatorFees(), 6)) };
+      return { ...market, claimable: Number(formatUnits(await contract.creatorFees(), market.quoteDecimals ?? 6)) };
     }));
   }
 

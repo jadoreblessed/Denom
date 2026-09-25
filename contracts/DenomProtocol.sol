@@ -283,12 +283,171 @@ contract DenomMarket {
     }
 }
 
+contract DenomQuoteAsset {
+    using SafeToken for IERC20Like;
+
+    error ReentrantCall();
+    error InvalidTerms();
+    error InvalidAmount();
+    error SlippageExceeded();
+    error InsufficientBalance();
+    error InsufficientAllowance();
+    error InvalidReceiver();
+    error OnlyCreator();
+
+    uint256 private constant WAD = 1e18;
+    uint16 public constant EXCHANGE_FEE_BPS = 30;
+
+    string public name;
+    string public symbol;
+    string public code;
+    string public metadataURI;
+    uint8 public constant decimals = 18;
+    uint256 public totalSupply;
+    uint256 public reserveBalance;
+    uint256 public volume;
+    uint256 public immutable referencePrice;
+    uint256 public immutable baseScale;
+    address public immutable creator;
+    address public immutable platformTreasury;
+    IERC20Like public immutable baseToken;
+    mapping(address => uint256) public balanceOf;
+    mapping(address => mapping(address => uint256)) public allowance;
+    bool private entered;
+
+    event Transfer(address indexed from, address indexed to, uint256 amount);
+    event Approval(address indexed owner, address indexed spender, uint256 amount);
+    event Swap(address indexed trader, bool indexed isBuy, uint256 baseAmount, uint256 quoteAmount);
+    event MetadataUpdated(string metadataURI);
+
+    modifier nonReentrant() {
+        if (entered) revert ReentrantCall();
+        entered = true;
+        _;
+        entered = false;
+    }
+
+    constructor(
+        address creator_,
+        address treasury_,
+        address baseToken_,
+        string memory name_,
+        string memory symbol_,
+        string memory code_,
+        string memory metadataURI_,
+        uint256 referencePrice_
+    ) {
+        uint8 baseDecimals = IERC20Like(baseToken_).decimals();
+        if (
+            creator_ == address(0) || treasury_ == address(0) || baseToken_ == address(0)
+                || bytes(name_).length == 0 || bytes(symbol_).length == 0 || bytes(code_).length == 0
+                || baseDecimals > 18 || referencePrice_ == 0
+        ) revert InvalidTerms();
+        creator = creator_;
+        platformTreasury = treasury_;
+        baseToken = IERC20Like(baseToken_);
+        baseScale = 10 ** (18 - baseDecimals);
+        name = name_;
+        symbol = symbol_;
+        code = code_;
+        metadataURI = metadataURI_;
+        referencePrice = referencePrice_;
+    }
+
+    function approve(address spender, uint256 amount) external returns (bool) {
+        allowance[msg.sender][spender] = amount;
+        emit Approval(msg.sender, spender, amount);
+        return true;
+    }
+
+    function transfer(address to, uint256 amount) external returns (bool) {
+        _transfer(msg.sender, to, amount);
+        return true;
+    }
+
+    function transferFrom(address from, address to, uint256 amount) external returns (bool) {
+        uint256 permitted = allowance[from][msg.sender];
+        if (permitted != type(uint256).max) {
+            if (permitted < amount) revert InsufficientAllowance();
+            unchecked { allowance[from][msg.sender] = permitted - amount; }
+        }
+        _transfer(from, to, amount);
+        return true;
+    }
+
+    function previewBuy(uint256 baseIn) public view returns (uint256 quoteOut) {
+        if (baseIn == 0) return 0;
+        uint256 fee = baseIn * EXCHANGE_FEE_BPS / 10_000;
+        quoteOut = (baseIn - fee) * baseScale * WAD / referencePrice;
+    }
+
+    function previewSell(uint256 quoteIn) public view returns (uint256 baseOut) {
+        if (quoteIn == 0) return 0;
+        uint256 gross = quoteIn * referencePrice / WAD / baseScale;
+        baseOut = gross - gross * EXCHANGE_FEE_BPS / 10_000;
+    }
+
+    function buy(uint256 baseIn, uint256 minQuoteOut) external nonReentrant returns (uint256 quoteOut) {
+        if (baseIn == 0) revert InvalidAmount();
+        quoteOut = previewBuy(baseIn);
+        if (quoteOut == 0 || quoteOut < minQuoteOut) revert SlippageExceeded();
+        uint256 fee = baseIn * EXCHANGE_FEE_BPS / 10_000;
+        uint256 net = baseIn - fee;
+        baseToken.safeTransferFrom(msg.sender, address(this), baseIn);
+        if (fee != 0) baseToken.safeTransfer(platformTreasury, fee);
+        reserveBalance += net;
+        volume += baseIn;
+        totalSupply += quoteOut;
+        balanceOf[msg.sender] += quoteOut;
+        emit Transfer(address(0), msg.sender, quoteOut);
+        emit Swap(msg.sender, true, baseIn, quoteOut);
+    }
+
+    function sell(uint256 quoteIn, uint256 minBaseOut) external nonReentrant returns (uint256 baseOut) {
+        if (quoteIn == 0 || balanceOf[msg.sender] < quoteIn) revert InvalidAmount();
+        uint256 gross = quoteIn * referencePrice / WAD / baseScale;
+        baseOut = gross - gross * EXCHANGE_FEE_BPS / 10_000;
+        if (baseOut == 0 || baseOut < minBaseOut || gross > reserveBalance) revert SlippageExceeded();
+        unchecked { balanceOf[msg.sender] -= quoteIn; }
+        totalSupply -= quoteIn;
+        reserveBalance -= gross;
+        uint256 fee = gross - baseOut;
+        if (fee != 0) baseToken.safeTransfer(platformTreasury, fee);
+        baseToken.safeTransfer(msg.sender, baseOut);
+        volume += gross;
+        emit Transfer(msg.sender, address(0), quoteIn);
+        emit Swap(msg.sender, false, gross, quoteIn);
+    }
+
+    function updateMetadata(string calldata metadataURI_) external {
+        if (msg.sender != creator) revert OnlyCreator();
+        metadataURI = metadataURI_;
+        emit MetadataUpdated(metadataURI_);
+    }
+
+    function _transfer(address from, address to, uint256 amount) internal {
+        if (to == address(0)) revert InvalidReceiver();
+        uint256 balance = balanceOf[from];
+        if (balance < amount) revert InsufficientBalance();
+        unchecked { balanceOf[from] = balance - amount; }
+        balanceOf[to] += amount;
+        emit Transfer(from, to, amount);
+    }
+}
+
 contract DenomFactory {
     error InvalidTreasury();
+    error InvalidBaseToken();
+    error InvalidQuoteToken();
+    error CodeAlreadyExists();
 
     address public immutable platformTreasury;
+    address public immutable baseQuoteToken;
     address[] public markets;
+    address[] public quoteAssets;
     mapping(address => bool) public isMarket;
+    mapping(address => bool) public isQuoteAsset;
+    mapping(bytes32 => address) public quoteByCode;
     mapping(address => address[]) private creatorMarkets;
 
     event MarketCreated(
@@ -302,9 +461,55 @@ contract DenomFactory {
         string metadataURI
     );
 
-    constructor(address platformTreasury_) {
+    event QuoteAssetCreated(
+        address indexed quoteAsset,
+        address indexed creator,
+        string code,
+        string name,
+        string symbol,
+        uint256 referencePrice,
+        string metadataURI
+    );
+
+    constructor(address platformTreasury_, address baseQuoteToken_) {
         if (platformTreasury_ == address(0)) revert InvalidTreasury();
+        if (baseQuoteToken_ == address(0)) revert InvalidBaseToken();
         platformTreasury = platformTreasury_;
+        baseQuoteToken = baseQuoteToken_;
+    }
+
+    function createQuoteAsset(
+        string calldata name,
+        string calldata symbol,
+        string calldata code,
+        string calldata metadataURI,
+        uint256 referencePrice
+    ) external returns (address quoteAssetAddress) {
+        bytes32 codeHash = keccak256(bytes(code));
+        if (quoteByCode[codeHash] != address(0)) revert CodeAlreadyExists();
+        DenomQuoteAsset quoteAsset = new DenomQuoteAsset(
+            msg.sender,
+            platformTreasury,
+            baseQuoteToken,
+            name,
+            symbol,
+            code,
+            metadataURI,
+            referencePrice
+        );
+        quoteAssetAddress = address(quoteAsset);
+        quoteAssets.push(quoteAssetAddress);
+        isQuoteAsset[quoteAssetAddress] = true;
+        quoteByCode[codeHash] = quoteAssetAddress;
+        emit QuoteAssetCreated(
+            quoteAssetAddress,
+            msg.sender,
+            code,
+            name,
+            symbol,
+            referencePrice,
+            metadataURI
+        );
     }
 
     function createMarket(
@@ -318,6 +523,7 @@ contract DenomFactory {
         uint256 maxSupply,
         uint16 creatorFeeBps
     ) external returns (address marketAddress, address tokenAddress) {
+        if (quoteToken != baseQuoteToken && !isQuoteAsset[quoteToken]) revert InvalidQuoteToken();
         DenomMarket market = new DenomMarket(
             msg.sender,
             platformTreasury,
@@ -350,6 +556,10 @@ contract DenomFactory {
 
     function marketCount() external view returns (uint256) {
         return markets.length;
+    }
+
+    function quoteAssetCount() external view returns (uint256) {
+        return quoteAssets.length;
     }
 
     function marketsByCreator(address creator) external view returns (address[] memory) {

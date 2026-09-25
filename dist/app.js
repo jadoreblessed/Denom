@@ -7,6 +7,9 @@ const smooth = value => {
   const t = clamp(value);
   return t * t * (3 - 2 * t);
 };
+const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, character => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+})[character]);
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const scenes = [...document.querySelectorAll('.scene')];
 const appShell = document.querySelector('#denom-app');
@@ -248,7 +251,10 @@ function filteredMarkets() {
 function renderMarkets() {
   const result = filteredMarkets();
   const visible = result.slice(0, marketLimit);
-  marketBody.innerHTML = visible.map((market, index) => `<button class="market-row" type="button" data-market-id="${market.id}" aria-label="Open ${market.name} market"><span class="coin-cell"><em>${String(index + 1).padStart(2,'0')}</em><i class="coin-mark"><img src="${market.logo}" alt="${market.name}" loading="lazy"></i><strong>${market.name}<small>${market.ticker}</small></strong></span><b class="unit-cell"><img src="${unitMeta[market.unit].icon}" alt=""><span>${market.unit}</span></b><span>${formatMarketPrice(market)}</span><span>$${market.cap.toLocaleString()}</span><span class="curve-state ${market.curve === 100 ? 'complete' : ''}"><label>${market.curve === 100 ? 'Graduated' : 'Bonding curve'} <b>${market.curve === 100 ? '100' : market.curve.toFixed(1)}%</b></label><i style="--p:${market.curve}%"></i></span></button>`).join('');
+  marketBody.innerHTML = visible.map((market, index) => {
+    const meta = unitMeta[market.unit] || { icon: 'assets/icons/usdg.svg' };
+    return `<button class="market-row" type="button" data-market-id="${market.id}" aria-label="Open ${market.name} market"><span class="coin-cell"><em>${String(index + 1).padStart(2,'0')}</em><i class="coin-mark"><img src="${market.logo}" alt="${market.name}" loading="lazy"></i><strong>${market.name}<small>${market.ticker}</small></strong></span><b class="unit-cell"><img src="${meta.icon}" alt=""><span>${market.unit}</span></b><span>${formatMarketPrice(market)}</span><span>$${market.cap.toLocaleString()}</span><span class="curve-state ${market.curve === 100 ? 'complete' : ''}"><label>${market.curve === 100 ? 'Graduated' : 'Bonding curve'} <b>${market.curve === 100 ? '100' : market.curve.toFixed(1)}%</b></label><i style="--p:${market.curve}%"></i></span></button>`;
+  }).join('');
   marketEmpty.hidden = result.length !== 0;
   loadMarkets.hidden = result.length <= marketLimit;
 }
@@ -491,6 +497,7 @@ async function selectMarket(id) {
   document.querySelector('#detail-curve').textContent = market.curve === 100 ? 'Graduated' : `${market.curve}%`;
   document.querySelector('#chart-unit').textContent = market.unit;
   document.querySelector('#detail-pay-unit').textContent = market.unit;
+  document.querySelector('#trade-amount-label').textContent = tradeMode === 'buy' ? `Spend ${market.unit}` : `Sell ${market.ticker}`;
   document.querySelector('#graduation-label').textContent = market.curve === 100 ? 'Graduated' : 'Bonding curve';
   document.querySelector('#graduation-percent').textContent = `${market.curve}%`;
   document.querySelector('#graduation-bar').style.width = `${market.curve}%`;
@@ -570,6 +577,7 @@ const creatorFee = document.querySelector('#creator-fee');
 const launchPairSelect = document.querySelector('#launch-pair-select');
 const launchPairMenu = document.querySelector('#launch-pair-menu');
 let activeLaunchPair = 'EUR';
+let activeLaunchQuote = '';
 
 function syncLaunch() {
   const name = launchName?.value.trim() || 'Your next big idea';
@@ -596,22 +604,27 @@ launchPairSelect?.addEventListener('click', () => {
   launchPairSelect.setAttribute('aria-expanded', String(opening));
 });
 
-document.querySelectorAll('[data-launch-pair]').forEach(button => {
-  button.addEventListener('click', () => {
-    activeLaunchPair = button.dataset.launchPair;
-    launchPairSelect.querySelector('img').src = button.dataset.icon;
-    launchPairSelect.querySelector('strong').innerHTML = `${activeLaunchPair} <small>${button.dataset.name}</small>`;
-    launchPairMenu.querySelectorAll('button').forEach(item => {
-      const active = item === button;
-      item.classList.toggle('active', active);
-      item.querySelector('span').textContent = active ? 'Selected' : '';
-    });
-    launchForm.querySelector('.launch-summary dl div:first-child dd').textContent = `${activeLaunchPair} ${button.dataset.name}`;
-    launchPairMenu.hidden = true;
-    launchPairSelect.classList.remove('open');
-    launchPairSelect.setAttribute('aria-expanded', 'false');
-    syncLaunch();
+function chooseLaunchPair(button) {
+  activeLaunchPair = button.dataset.launchPair;
+  activeLaunchQuote = button.dataset.quoteAddress || chain.quoteAddress || '';
+  launchPairSelect.querySelector('img').src = button.dataset.icon;
+  launchPairSelect.querySelector('strong').innerHTML = `${activeLaunchPair} <small>${button.dataset.name}</small>`;
+  launchPairMenu.querySelectorAll('button').forEach(item => {
+    const active = item === button;
+    item.classList.toggle('active', active);
+    item.querySelector('span').textContent = active ? 'Selected' : '';
   });
+  launchForm.querySelector('.launch-summary dl div:first-child dd').textContent = `${activeLaunchPair} ${button.dataset.name}`;
+  document.querySelector('#pay-symbol').textContent = activeLaunchPair;
+  launchPairMenu.hidden = true;
+  launchPairSelect.classList.remove('open');
+  launchPairSelect.setAttribute('aria-expanded', 'false');
+  syncLaunch();
+}
+
+launchPairMenu?.addEventListener('click', event => {
+  const button = event.target.closest('[data-launch-pair]');
+  if (button) chooseLaunchPair(button);
 });
 
 document.querySelectorAll('[data-pay]').forEach(button => {
@@ -633,26 +646,91 @@ function syncPair() {
 }
 pairForm?.querySelectorAll('input').forEach(input => input.addEventListener('input', syncPair));
 
-const pairButtons = [...document.querySelectorAll('.pair-list > button[data-pair]')];
-const swapPanel = document.querySelector('.swap-panel');
-pairButtons.forEach(button => {
-  button.addEventListener('click', () => {
-    pairButtons.forEach(item => item.classList.toggle('active', item === button));
-    const pair = button.dataset.pair;
-    const name = button.dataset.name;
-    const icon = button.dataset.icon;
-    swapPanel.querySelector(':scope > p').textContent = `Exchange USDG for ${pair} to start trading ${pair}-priced coins.`;
-    swapPanel.querySelector('.swap-pair img').src = icon;
-    swapPanel.querySelector('.swap-pair strong').innerHTML = `${pair} <small>${name}</small>`;
-    swapPanel.querySelector('.swap-pair code').textContent = button.dataset.address;
-    const receive = swapPanel.querySelectorAll('label')[1];
-    receive.firstChild.textContent = `Receive ${pair}`;
-    receive.querySelector('img').src = icon;
-    receive.querySelector('b').lastChild.textContent = pair;
-    const numericRate = Number(String(button.dataset.rate).replace(/[$,]/g, '')) || 1;
-    swapPanel.querySelector('.swap-quote b').textContent = `1 USDG = ${(1 / numericRate).toLocaleString(undefined, { maximumFractionDigits: 6 })} ${pair}`;
-  });
+const pairList = document.querySelector('#pair-list');
+const swapPanel = document.querySelector('#swap-panel');
+const swapSpend = document.querySelector('#swap-spend');
+const swapReceive = document.querySelector('#swap-receive');
+let quoteAssets = [];
+let activeQuoteAsset = null;
+let swapMode = 'buy';
+let swapPreviewToken = 0;
+
+function renderQuoteAssets(assets) {
+  quoteAssets = assets;
+  assets.forEach(asset => { unitMeta[asset.code] = { icon: asset.logo, symbol: `${asset.code} ` }; });
+  const custom = assets.filter(asset => !asset.isBase);
+  document.querySelector('#exchange-pair-count').textContent = String(custom.length);
+  document.querySelector('#exchange-reserves').textContent = `$${custom.reduce((sum, asset) => sum + asset.reserve, 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+  document.querySelector('#pair-list-count').textContent = `${custom.length} available`;
+  pairList.querySelectorAll(':scope > button,:scope > .pair-empty').forEach(element => element.remove());
+  if (!custom.length) {
+    pairList.insertAdjacentHTML('beforeend', '<div class="pair-empty"><strong>No onchain units yet</strong><small>Create the first one in Make a pair.</small></div>');
+  } else {
+    pairList.insertAdjacentHTML('beforeend', custom.map((asset, index) => `<button type="button" class="${index === 0 ? 'active' : ''}" data-quote-address="${escapeHtml(asset.address)}"><i><img src="${escapeHtml(asset.logo)}" alt=""></i><strong>${escapeHtml(asset.code)}<small>${escapeHtml(asset.name)} · ${escapeHtml(shortAddress(asset.address))}</small></strong><b>$${asset.referencePrice.toLocaleString(undefined, { maximumFractionDigits: 6 })}</b><span>›</span></button>`).join(''));
+  }
+
+  launchPairMenu.innerHTML = assets.map((asset, index) => `<button type="button" data-launch-pair="${escapeHtml(asset.code)}" data-name="${escapeHtml(asset.name)}" data-icon="${escapeHtml(asset.logo)}" data-quote-address="${escapeHtml(asset.address)}" class="${index === 0 ? 'active' : ''}"><img src="${escapeHtml(asset.logo)}" alt=""><strong>${escapeHtml(asset.code)}<small>${escapeHtml(asset.name)}</small></strong><span>${index === 0 ? 'Selected' : ''}</span></button>`).join('');
+  if (assets[0]) chooseLaunchPair(launchPairMenu.querySelector('button'));
+  if (custom[0]) selectQuoteAsset(custom[0]);
+  else selectQuoteAsset(null);
+}
+
+function selectQuoteAsset(asset) {
+  activeQuoteAsset = asset;
+  pairList?.querySelectorAll('[data-quote-address]').forEach(button => button.classList.toggle('active', asset && button.dataset.quoteAddress.toLowerCase() === asset.address.toLowerCase()));
+  const action = document.querySelector('#swap-action b');
+  if (!asset) {
+    swapPanel.querySelector(':scope > p').textContent = 'Create or choose an onchain unit to exchange.';
+    swapPanel.querySelector('.swap-pair img').src = 'assets/icons/usdg.svg';
+    swapPanel.querySelector('.swap-pair strong').innerHTML = 'USDG <small>Base settlement</small>';
+    swapPanel.querySelector('.swap-pair code').textContent = '—';
+    document.querySelector('#swap-rate').textContent = 'Choose a unit';
+    action.textContent = 'Choose a unit';
+    swapReceive.value = '';
+    return;
+  }
+  swapPanel.querySelector(':scope > p').textContent = `Exchange USDG and ${asset.code} through its transparent reserve.`;
+  swapPanel.querySelector('.swap-pair img').src = asset.logo;
+  swapPanel.querySelector('.swap-pair strong').innerHTML = `${escapeHtml(asset.code)} <small>${escapeHtml(asset.name)}</small>`;
+  swapPanel.querySelector('.swap-pair code').textContent = shortAddress(asset.address);
+  document.querySelector('#swap-rate').textContent = `1 ${asset.code} = ${asset.referencePrice.toLocaleString(undefined, { maximumFractionDigits: 6 })} USDG`;
+  action.textContent = `${swapMode === 'buy' ? 'Buy' : 'Sell'} ${asset.code}`;
+  syncSwapLabels();
+  updateSwapPreview();
+}
+
+function syncSwapLabels() {
+  const code = activeQuoteAsset?.code || 'unit';
+  const buying = swapMode === 'buy';
+  document.querySelector('#swap-spend-label').firstChild.textContent = `Spend ${buying ? 'USDG' : code}`;
+  document.querySelector('#swap-spend-label .currency-label span').textContent = buying ? 'USDG' : code;
+  document.querySelector('#swap-spend-label .currency-label img').src = buying ? 'assets/icons/usdg.svg' : activeQuoteAsset?.logo || 'assets/icons/usdg.svg';
+  document.querySelector('#swap-receive-label').firstChild.textContent = `Receive ${buying ? code : 'USDG'}`;
+  document.querySelector('#swap-receive-label .currency-label span').textContent = buying ? code : 'USDG';
+}
+
+async function updateSwapPreview() {
+  const token = ++swapPreviewToken;
+  const amount = Number(swapSpend?.value || 0);
+  if (!activeQuoteAsset || !(amount > 0)) { swapReceive.value = ''; return; }
+  try {
+    const result = await chain.previewQuoteSwap(activeQuoteAsset.address, swapMode, amount);
+    if (token === swapPreviewToken) swapReceive.value = result ? result.toFixed(Math.min(8, result < 1 ? 8 : 4)) : '';
+  } catch { if (token === swapPreviewToken) swapReceive.value = ''; }
+}
+
+pairList?.addEventListener('click', event => {
+  const button = event.target.closest('[data-quote-address]');
+  if (!button) return;
+  selectQuoteAsset(quoteAssets.find(asset => asset.address.toLowerCase() === button.dataset.quoteAddress.toLowerCase()));
 });
+swapSpend?.addEventListener('input', updateSwapPreview);
+document.querySelectorAll('[data-swap-mode]').forEach(button => button.addEventListener('click', () => {
+  swapMode = button.dataset.swapMode;
+  syncSwapLabels();
+  document.querySelector('#swap-action b').textContent = activeQuoteAsset ? `${swapMode === 'buy' ? 'Buy' : 'Sell'} ${activeQuoteAsset.code}` : 'Choose a unit';
+  updateSwapPreview();
+}));
 
 const rateRows = [...document.querySelectorAll('.rates-table article')];
 const rateSearch = document.querySelector('#rate-search');
@@ -688,9 +766,58 @@ function reviewForm(event) {
   document.querySelector('#review-dialog').showModal();
 }
 launchForm?.addEventListener('submit', reviewForm);
-pairForm?.addEventListener('submit', event => {
+pairForm?.addEventListener('submit', async event => {
   event.preventDefault();
-  showToast('Custom settlement assets require a verified token contract.');
+  if (!pairForm.reportValidity()) return;
+  const button = pairForm.querySelector('[type="submit"]');
+  try {
+    button.disabled = true;
+    button.querySelector('b').textContent = chain.configured ? 'Confirm in wallet…' : 'Deploying protocol…';
+    if (!chain.account && !await connectWallet()) return;
+    if (!chain.configured) await chain.deployTestProtocol();
+    button.querySelector('b').textContent = 'Creating unit…';
+    await chain.createQuoteAsset({
+      name: pairForm.elements.namedItem('pair-name').value.trim(),
+      ticker: pairForm.elements.namedItem('pair-ticker').value.trim().toUpperCase(),
+      code: pairForm.elements.namedItem('pair-code').value.trim().toUpperCase(),
+      description: pairForm.elements.namedItem('pair-description').value.trim(),
+      referencePrice: Number(pairForm.elements.namedItem('pair-value').value)
+    });
+    pairForm.reset();
+    syncPair();
+    await refreshProtocol();
+    openApp('exchange');
+    showToast('New settlement unit is live on Robinhood Chain Testnet.');
+  } catch (error) {
+    showToast(error?.shortMessage || error?.message || 'Unit creation failed.');
+  } finally {
+    button.disabled = false;
+    button.querySelector('b').textContent = 'Create onchain pair';
+  }
+});
+swapPanel?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!activeQuoteAsset) { showToast('Choose a unit first.'); return; }
+  const amount = Number(swapSpend.value || 0);
+  if (!(amount > 0)) { showToast('Enter an amount first.'); return; }
+  const button = document.querySelector('#swap-action');
+  try {
+    button.disabled = true;
+    button.querySelector('b').textContent = 'Confirm in wallet…';
+    if (!chain.account && !await connectWallet()) return;
+    if (swapMode === 'buy' && await chain.quoteBalance() < amount) await chain.faucet();
+    await chain.swapQuote(activeQuoteAsset.address, swapMode, amount);
+    swapSpend.value = '';
+    swapReceive.value = '';
+    await refreshProtocol();
+    await refreshWalletViews();
+    showToast(`${swapMode === 'buy' ? 'Bought' : 'Sold'} ${activeQuoteAsset.code} onchain.`);
+  } catch (error) {
+    showToast(error?.shortMessage || error?.message || 'Exchange failed.');
+  } finally {
+    button.disabled = false;
+    button.querySelector('b').textContent = activeQuoteAsset ? `${swapMode === 'buy' ? 'Buy' : 'Sell'} ${activeQuoteAsset.code}` : 'Choose a unit';
+  }
 });
 document.querySelectorAll('.art-drop').forEach(button => button.addEventListener('click', () => showToast('A deterministic onchain mark is generated from the ticker.')));
 document.querySelectorAll('.add-pair').forEach(button => button.addEventListener('click', () => openApp('make-pair')));
@@ -732,7 +859,7 @@ async function refreshProtocol() {
   if (!chainReady) return;
   if (!chain.configured) {
     state.textContent = 'Protocol is ready to deploy';
-    address.textContent = 'One wallet transaction deploys the factory and test USDG.';
+    address.textContent = 'Wallet deployment creates the factory and test USDG contracts.';
     deploy.hidden = false;
     copy.hidden = true;
     faucet.hidden = true;
@@ -744,8 +871,9 @@ async function refreshProtocol() {
   copy.hidden = false;
   faucet.hidden = false;
   try {
-    const liveMarkets = await chain.loadMarkets();
+    const [liveMarkets, assets] = await Promise.all([chain.loadMarkets(), chain.loadQuoteAssets()]);
     marketData = liveMarkets;
+    renderQuoteAssets(assets);
     renderMarkets();
   } catch (error) {
     state.textContent = 'RPC temporarily unavailable';
@@ -796,16 +924,21 @@ document.querySelector('#confirm-launch')?.addEventListener('click', async event
     button.textContent = 'Confirm in wallet…';
     if (!chain.account && !await connectWallet()) return;
     const firstBuy = Number(launchForm.elements.namedItem('first-buy').value || 0);
+    if (firstBuy > 0) {
+      const quoteToken = activeLaunchQuote || chain.quoteAddress;
+      const balance = await chain.quoteBalance(quoteToken);
+      if (balance < firstBuy && quoteToken.toLowerCase() === chain.quoteAddress.toLowerCase()) await chain.faucet();
+      else if (balance < firstBuy) throw new Error(`Get ${activeLaunchPair} in Exchange before making a first buy.`);
+    }
     const result = await chain.launch({
       name: launchName.value.trim(),
       ticker: launchTicker.value.trim().toUpperCase(),
       unit: activeLaunchPair,
       description: launchForm.elements.namedItem('description').value.trim(),
-      creatorFee: Number(creatorFee.value || 0)
+      creatorFee: Number(creatorFee.value || 0),
+      quoteToken: activeLaunchQuote || chain.quoteAddress
     });
     if (firstBuy > 0 && result.market) {
-      const balance = await chain.quoteBalance();
-      if (balance < firstBuy) await chain.faucet();
       await chain.buy(result.market, firstBuy);
     }
     document.querySelector('#review-dialog').close();
@@ -825,7 +958,7 @@ document.querySelector('#confirm-launch')?.addEventListener('click', async event
 
 document.querySelectorAll('[data-trade-mode]').forEach(button => button.addEventListener('click', () => {
   tradeMode = button.dataset.tradeMode;
-  document.querySelector('#trade-amount-label').textContent = tradeMode === 'buy' ? 'Spend USDG' : `Sell ${activeMarket?.ticker || 'tokens'}`;
+  document.querySelector('#trade-amount-label').textContent = tradeMode === 'buy' ? `Spend ${activeMarket?.unit || 'unit'}` : `Sell ${activeMarket?.ticker || 'tokens'}`;
   const label = document.querySelector('#trade-action b');
   label.textContent = chain.account && activeMarket?.source === 'chain' ? `${tradeMode === 'buy' ? 'Buy' : 'Sell'} ${activeMarket.ticker}` : 'Connect wallet to trade';
 }));
@@ -872,9 +1005,9 @@ async function refreshWalletViews() {
   const portfolio = document.querySelector('#portfolio-body');
   if (positions.length) portfolio.innerHTML = positions.map(item => `<div class="portfolio-position"><strong>${item.name}<small>${item.balance.toLocaleString(undefined, { maximumFractionDigits: 4 })} ${item.ticker}</small></strong><b>${formatMarketPrice(item)}</b><span>$${item.value.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div>`).join('');
   const total = earnings.reduce((sum, item) => sum + item.claimable, 0);
-  document.querySelector('#claimable-total').textContent = `${total.toLocaleString(undefined, { maximumFractionDigits: 4 })} USDG`;
+  document.querySelector('#claimable-total').textContent = `${total.toLocaleString(undefined, { maximumFractionDigits: 4 })} in market units`;
   const earningsBody = document.querySelector('#earnings-body');
-  if (earnings.length) earningsBody.innerHTML = earnings.map(item => `<div class="earnings-line"><strong>${item.name}<small>${item.ticker}</small></strong><span>${item.volume.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDG</span><b>${item.claimable.toLocaleString(undefined, { maximumFractionDigits: 4 })} USDG</b><button type="button" data-claim-market="${item.marketAddress}" ${item.claimable ? '' : 'disabled'}>Claim</button></div>`).join('');
+  if (earnings.length) earningsBody.innerHTML = earnings.map(item => `<div class="earnings-line"><strong>${item.name}<small>${item.ticker}</small></strong><span>${item.volume.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${item.unit}</span><b>${item.claimable.toLocaleString(undefined, { maximumFractionDigits: 4 })} ${item.unit}</b><button type="button" data-claim-market="${item.marketAddress}" ${item.claimable ? '' : 'disabled'}>Claim</button></div>`).join('');
 }
 
 document.querySelector('#earnings-body')?.addEventListener('click', async event => {

@@ -24,7 +24,7 @@ if (errors.length) {
 }
 const target = path.join(root, 'dist', 'contracts');
 fs.mkdirSync(target, { recursive: true });
-for (const name of ['DenomFactory', 'DenomMarket', 'DenomToken', 'MockQuoteToken']) {
+for (const name of ['DenomFactory', 'DenomMarket', 'DenomToken', 'DenomQuoteAsset', 'MockQuoteToken']) {
   const artifact = output.contracts['DenomProtocol.sol'][name];
   fs.writeFileSync(path.join(target, `${name}.json`), JSON.stringify({
     contractName: name,

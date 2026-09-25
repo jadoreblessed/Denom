@@ -6,7 +6,10 @@ DENOM is a Robinhood Chain launch market with fixed supply bonding curves. The l
 
 - EVM wallet connection and automatic Robinhood Chain Testnet switching.
 - Factory deployment from the browser or the deployment script.
+- Creation of fixed-reference settlement units backed by transparent USDG reserves.
+- Two-way USDG/unit exchange with onchain previews, slippage limits and a 0.30% exchange fee.
 - Market creation with an ERC-20 coin, fixed maximum supply and metadata stored onchain.
+- Markets can settle in USDG or any unit created through the DENOM factory.
 - Buy and sell quotes from the same linear bonding curve used for settlement.
 - Slippage protection, reserve accounting and reentrancy protection.
 - Protocol and creator fees, plus creator claims.
@@ -20,7 +23,7 @@ npm run check
 npm run dev
 ```
 
-`npm run check` compiles the contracts and runs launch, buy, sell, fee and claim transactions against an in-memory EVM.
+`npm run check` compiles the contracts and runs unit creation, exchange, market launch, buy, sell, fee and claim transactions against an in-memory EVM.
 
 ## Deploy to Robinhood Chain Testnet
 

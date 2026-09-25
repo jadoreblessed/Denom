@@ -202,29 +202,29 @@
               <label>Ticker<small>Two to ten characters, no spaces.</small><input name="pair-ticker" placeholder="CASHCAT" required></label>
             </div>
             <label class="wide">Code<small>How coins priced in it refer to it. First come, and permanent.</small><input name="pair-code" placeholder="CASHCAT" required></label>
-            <label class="wide">Description<small>Optional. What the pair is.</small><textarea placeholder="One cash cat."></textarea></label>
+            <label class="wide">Description<small>Optional. What the pair is.</small><textarea name="pair-description" placeholder="One cash cat."></textarea></label>
             <label class="wide">What one unit is worth<small>In dollars.</small><div class="input-unit"><input name="pair-value" type="number" min=".000001" step="any" value="10"><b>USD</b></div></label>
-            <div class="pair-proof wide"><span>Supply</span><strong>1,000,000,000</strong><span>Creation cost</span><strong>One transaction</strong></div>
+            <div class="pair-proof wide"><span>Supply</span><strong>Minted on demand</strong><span>Backing</span><strong>Fully reserved in USDG</strong></div>
           </div>
-          <aside class="pair-preview"><span>PAIR PREVIEW</span><div class="preview-token">CC</div><h3 id="pair-preview-name">Cash Cat</h3><p><b id="pair-preview-code">CASHCAT</b> / USD</p><dl><div><dt>Reference value</dt><dd id="pair-preview-value">$10.00</dd></div><div><dt>Supply</dt><dd>1B</dd></div><div><dt>Owner funding</dt><dd>$0</dd></div></dl><button type="submit" class="primary-action">Review pair</button></aside>
+          <aside class="pair-preview"><span>PAIR PREVIEW</span><div class="preview-token">CC</div><h3 id="pair-preview-name">Cash Cat</h3><p><b id="pair-preview-code">CASHCAT</b> / USDG</p><dl><div><dt>Reference value</dt><dd id="pair-preview-value">$10.00</dd></div><div><dt>Exchange fee</dt><dd>0.30%</dd></div><div><dt>Backing</dt><dd>Onchain USDG reserve</dd></div></dl><button type="submit" class="primary-action"><b>Create onchain pair</b></button></aside>
         </form>
       </section>
 
       <section class="app-view exchange-view" data-view="exchange" hidden>
         <header class="product-heading simple"><div><span>EXCHANGE</span><h2>Get the unit you want to trade in.</h2><p>Swap USDG or ETH for a listed unit first.</p></div></header>
-        <div class="exchange-metrics"><article><span>PAIRS LISTED</span><strong>310</strong><small>also on Uniswap</small></article><article><span>RATE CHECKS PASSING</span><strong>308</strong><small>freshness and sources</small></article></div>
+        <div class="exchange-metrics"><article><span>ONCHAIN PAIRS</span><strong id="exchange-pair-count">0</strong><small>created through DENOM</small></article><article><span>USDG RESERVES</span><strong id="exchange-reserves">$0</strong><small>visible and redeemable onchain</small></article></div>
         <div class="exchange-tools"><label class="product-search"><span>⌕</span><input type="search" placeholder="Search pair or code"></label><div class="region-chips"><button class="active">All</button><button>Americas 32</button><button>Europe 29</button><button>Asia Pacific 39</button><button>Metals 12</button><button>Energy 9</button><button>Cards 24</button></div></div>
         <div class="exchange-grid">
-          <div class="pair-list"><header><span>Choose a pair</span><b>310 available</b></header><button class="active" data-pair="EUR" data-name="Euro" data-rate="$1.148" data-address="0xEf0f…9c9D" data-icon="assets/icons/flag-eu.svg"><i><img src="assets/icons/flag-eu.svg" alt=""></i><strong>EUR<small>Euro · 0xEf0f…9c9D</small></strong><b>$1.148</b><span>›</span></button><button data-pair="GBP" data-name="British Pound" data-rate="$1.338" data-address="0x71a2…18F4" data-icon="assets/icons/flag-gb.svg"><i><img src="assets/icons/flag-gb.svg" alt=""></i><strong>GBP<small>British Pound · 0x71a2…18F4</small></strong><b>$1.338</b><span>›</span></button><button data-pair="JPY" data-name="Japanese Yen" data-rate="$0.006373" data-address="0x9Bc1…11E8" data-icon="assets/icons/flag-jp.svg"><i><img src="assets/icons/flag-jp.svg" alt=""></i><strong>JPY<small>Japanese Yen · 0x9Bc1…11E8</small></strong><b>$0.006373</b><span>›</span></button><button data-pair="GOLD" data-name="Gold / oz" data-rate="$4,326" data-address="0xA012…6E10" data-icon="assets/icons/gold.svg"><i><img src="assets/icons/gold.svg" alt=""></i><strong>GOLD<small>Gold / oz · 0xA012…6E10</small></strong><b>$4,326</b><span>›</span></button><button data-pair="OIL" data-name="Brent crude" data-rate="$74.32" data-address="0x0A44…98F1" data-icon="assets/icons/oil.svg"><i><img src="assets/icons/oil.svg" alt=""></i><strong>OIL<small>Brent crude · 0x0A44…98F1</small></strong><b>$74.32</b><span>›</span></button></div>
-          <form class="swap-panel">
-            <span>EXCHANGE</span><h3>Swap into it.</h3><p>Exchange USDG for EUR to start trading EUR-priced coins.</p>
-            <div class="swap-pair"><i><img src="assets/icons/flag-eu.svg" alt=""></i><strong>EUR <small>Euro</small></strong><code>0xEf0f…9c9D</code></div>
-            <div class="segmented swap-mode"><button type="button" class="active">Buy</button><button type="button">Sell</button></div>
-            <label>Spend USDG<div><input type="number" placeholder="0.00"><b class="currency-label"><img src="assets/icons/usdg.svg" alt="">USDG</b></div></label>
+          <div class="pair-list" id="pair-list"><header><span>Choose a pair</span><b id="pair-list-count">Connect protocol</b></header><div class="pair-empty"><strong>No onchain units yet</strong><small>Create the first one in Make a pair.</small></div></div>
+          <form class="swap-panel" id="swap-panel">
+            <span>EXCHANGE</span><h3>Swap into it.</h3><p>Create or choose an onchain unit to exchange.</p>
+            <div class="swap-pair"><i><img src="assets/icons/usdg.svg" alt=""></i><strong>USDG <small>Base settlement</small></strong><code>—</code></div>
+            <div class="segmented swap-mode"><button type="button" class="active" data-swap-mode="buy">Buy</button><button type="button" data-swap-mode="sell">Sell</button></div>
+            <label id="swap-spend-label">Spend USDG<div><input id="swap-spend" type="number" min="0" step="any" placeholder="0.00"><b class="currency-label"><img src="assets/icons/usdg.svg" alt=""><span>USDG</span></b></div></label>
             <span class="swap-arrow">↓</span>
-            <label>Receive EUR<div><input type="number" placeholder="0.00"><b class="currency-label"><img src="assets/icons/flag-eu.svg" alt="">EUR</b></div></label>
-            <div class="swap-quote"><span>Indicative rate</span><b>1 USDG = 0.871 EUR</b><small>Network fee ≈ $0.04</small></div>
-            <button type="button" class="primary-action connect-wallet"><b>Connect wallet to swap</b></button>
+            <label id="swap-receive-label">Receive unit<div><input id="swap-receive" type="number" placeholder="0.00" readonly><b class="currency-label"><span>—</span></b></div></label>
+            <div class="swap-quote"><span>Fixed reference</span><b id="swap-rate">Choose a unit</b><small>0.30% exchange fee · network gas applies</small></div>
+            <button type="submit" class="primary-action" id="swap-action"><b>Choose a unit</b></button>
           </form>
         </div>
       </section>

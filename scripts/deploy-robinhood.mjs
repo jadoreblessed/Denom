@@ -20,7 +20,7 @@ if (!quoteToken) {
   await (await quote.mint(wallet.address, 1_000_000n * 10n ** 6n)).wait();
 }
 const factoryArtifact = readArtifact('DenomFactory');
-const factory = await new ContractFactory(factoryArtifact.abi, factoryArtifact.bytecode, wallet).deploy(treasury);
+const factory = await new ContractFactory(factoryArtifact.abi, factoryArtifact.bytecode, wallet).deploy(treasury, quoteToken);
 await factory.waitForDeployment();
 const deploymentBlock = await provider.getBlockNumber();
 const deployment = {
