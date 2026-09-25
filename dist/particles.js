@@ -130,7 +130,7 @@ export class DenomMatter {
       this.detailCos[index] = Math.cos(angle);
       this.detailSin[index] = Math.sin(angle);
     }
-    this.pointer = { x: -9999, y: -9999, active: false };
+    this.pointer = { x: -9999, y: -9999, velocityX: 0, velocityY: 0, angle: 0, active: false };
     this.pointA = new Float32Array(3);
     this.pointB = new Float32Array(3);
     this.textMaskCache = new Map();
@@ -164,6 +164,15 @@ export class DenomMatter {
     }, { passive: true });
     addEventListener('pointermove', event => {
       if (event.pointerType === 'touch') return;
+      if (this.pointer.active) {
+        const movementX = event.clientX - this.pointer.x;
+        const movementY = event.clientY - this.pointer.y;
+        this.pointer.velocityX = this.pointer.velocityX * .68 + movementX * .32;
+        this.pointer.velocityY = this.pointer.velocityY * .68 + movementY * .32;
+        if (Math.hypot(this.pointer.velocityX, this.pointer.velocityY) > .2) {
+          this.pointer.angle = Math.atan2(this.pointer.velocityY, this.pointer.velocityX);
+        }
+      }
       this.pointer.x = event.clientX;
       this.pointer.y = event.clientY;
       this.pointer.active = true;
@@ -352,6 +361,7 @@ export class DenomMatter {
     this.heroPointerX = NaN;
     this.heroPointerY = NaN;
     this.heroPointerEngaged = false;
+    this.heroPointerStrength = 0;
     this.heroHitGrid = null;
     this.heroDust = this.heroGlyphs.map((glyph, glyphIndex) => {
       const mask = this.textPoints(glyph.value, glyph.size, glyph.weight);
@@ -768,21 +778,21 @@ export class DenomMatter {
     this.heroHitGrid = hitGrid;
   }
 
-  heroHitTest(x, y) {
+  heroHitTest(x, y, padding = 1) {
     if (!this.heroHitGrid || x < 0 || y < 0 || x >= this.width || y >= this.height) return false;
     const column = Math.floor(x / this.heroHitCell);
     const row = Math.floor(y / this.heroHitCell);
     let density = 0;
-    for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
+    for (let offsetY = -padding; offsetY <= padding; offsetY += 1) {
       const sampleY = row + offsetY;
       if (sampleY < 0 || sampleY >= this.heroHitRows) continue;
-      for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+      for (let offsetX = -padding; offsetX <= padding; offsetX += 1) {
         const sampleX = column + offsetX;
         if (sampleX < 0 || sampleX >= this.heroHitColumns) continue;
         density += this.heroHitGrid[sampleY * this.heroHitColumns + sampleX];
       }
     }
-    return density >= 3;
+    return density > 0;
   }
 
   paintHeroDust(context, time, alpha) {
@@ -791,31 +801,45 @@ export class DenomMatter {
       this.drawHeroDust(this.heroDustContext, time);
       this.heroDustReady = true;
     }
-    let hovered = false;
-    if (this.pointer.active && this.local < .12) {
-      const radius = this.mobile ? 76 : 104;
+    const canReact = this.pointer.active && this.local < .12;
+    const hit = canReact && this.heroHitTest(this.pointer.x, this.pointer.y, this.heroPointerStrength > .08 ? 2 : 1);
+    const targetStrength = hit ? 1 : 0;
+    this.heroPointerStrength += (targetStrength - this.heroPointerStrength) * (hit ? .3 : .19);
+    if (this.heroPointerStrength > .965) this.heroPointerStrength = 1;
+    if (this.heroPointerStrength < .012) this.heroPointerStrength = 0;
+    this.heroPointerEngaged = hit || this.heroPointerStrength > .08;
+    let hovered = this.heroPointerStrength > 0;
+    if (hovered) {
+      const radius = this.mobile ? 72 : 98;
       const px = this.pointer.x;
       const py = this.pointer.y;
-      if ((Math.abs(px - this.heroPointerX) > 2 || Math.abs(py - this.heroPointerY) > 2)
-        && time - this.heroPointerDrawnAt > 58) {
+      const moved = Math.abs(px - this.heroPointerX) > 1 || Math.abs(py - this.heroPointerY) > 1;
+      const settling = Math.abs(targetStrength - this.heroPointerStrength) > .045;
+      if ((moved || settling) && time - this.heroPointerDrawnAt > 42) {
         const local = this.heroHoverContext;
         local.clearRect(0, 0, this.width, this.height);
         local.drawImage(this.heroDustCanvas, 0, 0, this.width, this.height);
-        this.heroPointerEngaged = this.heroHitTest(px, py) && this.drawHeroPointer(local, radius);
+        this.drawHeroPointer(local, radius, time, this.heroPointerStrength);
         this.heroPointerX = px;
         this.heroPointerY = py;
         this.heroPointerDrawnAt = time;
       }
-      hovered = this.heroPointerEngaged;
-    } else this.heroPointerEngaged = false;
+    }
     context.globalAlpha = alpha;
     context.drawImage(hovered ? this.heroHoverCanvas : this.heroDustCanvas, 0, 0, this.width, this.height);
     context.globalAlpha = 1;
   }
 
-  drawHeroPointer(context, radius) {
+  drawHeroPointer(context, radius, time, strength) {
     const px = this.pointer.x;
     const py = this.pointer.y;
+    const motion = Math.min(1, Math.hypot(this.pointer.velocityX, this.pointer.velocityY) / 18);
+    const angle = this.pointer.angle;
+    const axisX = Math.cos(angle);
+    const axisY = Math.sin(angle);
+    const normalX = -axisY;
+    const normalY = axisX;
+    const phase = this.pointer.angle * .37;
     const paths = Array.from({ length: 5 }, () => new Path2D());
     const scatterPaths = Array.from({ length: 5 }, () => new Path2D());
     const erased = new Path2D();
@@ -826,28 +850,37 @@ export class DenomMatter {
         const originalY = glyph.screenY[index];
         const dx = originalX - px;
         const dy = originalY - py;
-        const squared = dx * dx + dy * dy;
-        const reach = radius * (.72 + ((index * .61803398875 + glyph.index * .37) % 1) * .42);
-        if (squared >= reach * reach) continue;
+        const along = dx * axisX + dy * axisY;
+        const across = dx * normalX + dy * normalY;
+        const warpedDistance = Math.hypot(along * .76, across * 1.18);
+        const theta = Math.atan2(across, along);
+        const grain = (index * .61803398875 + glyph.index * .37) % 1;
+        const contour = 1 + Math.sin(theta * 3 + phase + glyph.index) * .1
+          + Math.cos(theta * 5 - phase * .7) * .045;
+        const reach = radius * contour * (.92 + grain * .13);
+        if (warpedDistance >= reach) continue;
         affected += 1;
-        const distance = Math.sqrt(squared);
-        const angle = index * 2.399963229728653;
-        const nx = distance > .01 ? dx / distance : Math.cos(angle);
-        const ny = distance > .01 ? dy / distance : Math.sin(angle);
+        const distance = Math.hypot(dx, dy);
+        const particleAngle = index * 2.399963229728653;
+        const nx = distance > .01 ? dx / distance : Math.cos(particleAngle);
+        const ny = distance > .01 ? dy / distance : Math.sin(particleAngle);
         const variation = .78 + ((index * .75487766625) % 1) * .34;
-        const core = radius * (.46 + ((index * .41421356237 + glyph.index * .19) % 1) * .18);
-        const force = (Math.max(0, core - distance) * .82
-          + (1 - distance / reach) ** 1.8 * (glyph.depths[index] ? 24 : 19)) * variation;
-        const swirl = (index % 2 ? 1 : -1) * force * .11;
-        const x = originalX + nx * force + -ny * swirl;
-        const y = originalY + ny * force + nx * swirl;
+        const core = radius * (.37 + Math.sin(theta * 2 - phase) * .045
+          + ((index * .41421356237 + glyph.index * .19) % 1) * .055);
+        const influence = (1 - warpedDistance / reach) ** 1.45;
+        const bank = across >= 0 ? 1 : -1;
+        const force = influence * (glyph.depths[index] ? 36 : 29) * variation * strength;
+        const stream = Math.sin(theta * 2.4 + phase + grain * 4) * 6 * influence * strength;
+        const wake = (4 + motion * 11) * influence * strength;
+        const x = originalX + normalX * bank * force * .74 + nx * force * .32 + axisX * (stream + wake);
+        const y = originalY + normalY * bank * force * .74 + ny * force * .32 + axisY * (stream + wake);
         const size = glyph.sizes[index] * (1 + glyph.positions[index * 3 + 2] / 350);
         const cover = size * .7 + .65;
         erased.rect(originalX - cover, originalY - cover, cover * 2, cover * 2);
-        // The centre stays empty. Only its irregular falloff is displaced,
-        // which reads as a puncture in the material instead of a cursor halo.
-        if (distance < core) continue;
-        const path = distance < core * 1.42 ? scatterPaths[glyph.tones[index]] : paths[glyph.tones[index]];
+        // The centre opens into an asymmetric fissure. The surrounding grains
+        // split into two flowing banks instead of forming a cursor-shaped ring.
+        if (warpedDistance < core) continue;
+        const path = warpedDistance < core * 1.65 ? scatterPaths[glyph.tones[index]] : paths[glyph.tones[index]];
         if (glyph.facets[index] === 1) {
           path.moveTo(x, y - size * .65);
           path.lineTo(x + size * .65, y);
@@ -863,16 +896,16 @@ export class DenomMatter {
       }
     }
     context.globalCompositeOperation = 'destination-out';
-    context.globalAlpha = 1;
+    context.globalAlpha = smooth(strength);
     context.fill(erased);
     context.globalCompositeOperation = 'source-over';
     const colors = ['#366986', '#5597b9', '#77b4d1', '#cbeafa', '#f0fcff'];
     const opacity = [.58, .66, .72, .82, .94];
     for (let tone = 0; tone < paths.length; tone += 1) {
-      context.globalAlpha = opacity[tone];
+      context.globalAlpha = opacity[tone] * strength;
       context.fillStyle = colors[tone];
       context.fill(paths[tone]);
-      context.globalAlpha = opacity[tone] * .48;
+      context.globalAlpha = opacity[tone] * strength * .62;
       context.fill(scatterPaths[tone]);
     }
     context.globalAlpha = 1;
@@ -999,21 +1032,28 @@ export class DenomMatter {
 
       let proximity = 0;
       let cursorAlpha = 1;
-      if (this.pointer.active && this.heroPointerEngaged && scene === 0 && rawTransition < .45) {
+      if (this.heroPointerStrength > .02 && scene === 0 && rawTransition < .45) {
         const dx = x - this.pointer.x;
         const dy = y - this.pointer.y;
-        const distance2 = dx * dx + dy * dy;
-        const baseRadius = this.mobile ? 76 : 104;
-        const radius = baseRadius * (.76 + fract(seed * 13.37) * .3);
-        if (distance2 < radius * radius) {
-          const distance = Math.sqrt(distance2) || 1;
-          proximity = (1 - distance / radius) ** 1.65 * (1 - transition);
-          const core = baseRadius * (.43 + fract(seed * 19.73) * .17);
-          const offset = (Math.max(0, core - distance) * .12 + proximity * 8) * (.82 + seed * .32);
-          const swirl = (index % 2 ? 1 : -1) * offset * .08;
-          x += dx / distance * offset - dy / distance * swirl;
-          y += dy / distance * offset + dx / distance * swirl;
-          cursorAlpha = smooth((distance - core * .5) / (core * .5));
+        const axisX = Math.cos(this.pointer.angle);
+        const axisY = Math.sin(this.pointer.angle);
+        const normalX = -axisY;
+        const normalY = axisX;
+        const along = dx * axisX + dy * axisY;
+        const across = dx * normalX + dy * normalY;
+        const distance = Math.hypot(dx, dy) || 1;
+        const warpedDistance = Math.hypot(along * .76, across * 1.18);
+        const baseRadius = this.mobile ? 72 : 98;
+        const radius = baseRadius * (.9 + fract(seed * 13.37) * .14);
+        if (warpedDistance < radius) {
+          proximity = (1 - warpedDistance / radius) ** 1.5 * (1 - transition) * this.heroPointerStrength;
+          const bank = across >= 0 ? 1 : -1;
+          const offset = proximity * (15 + seed * 8);
+          x += normalX * bank * offset * .72 + dx / distance * offset * .28 + axisX * proximity * 6;
+          y += normalY * bank * offset * .72 + dy / distance * offset * .28 + axisY * proximity * 6;
+          const core = baseRadius * (.35 + fract(seed * 19.73) * .055);
+          const cut = smooth((warpedDistance - core * .62) / (core * .52));
+          cursorAlpha = mix(1, cut, this.heroPointerStrength * (1 - transition));
         }
       }
 
@@ -1091,7 +1131,7 @@ export class DenomMatter {
     }
     const transitionState = rawTransition > 0 && rawTransition < 1 ? 'morphing' : 'formed';
     if (this.canvas.dataset.transition !== transitionState) this.canvas.dataset.transition = transitionState;
-    const pointerState = this.pointer.active && scene === 0 ? 'magnetic' : 'idle';
+    const pointerState = this.heroPointerStrength > .08 && scene === 0 ? 'fractured' : 'idle';
     if (this.canvas.dataset.pointer !== pointerState) this.canvas.dataset.pointer = pointerState;
   }
 }
