@@ -802,20 +802,24 @@ export class DenomMatter {
       this.heroDustReady = true;
     }
     const canReact = this.pointer.active && this.local < .12;
-    const hit = canReact && this.heroHitTest(this.pointer.x, this.pointer.y, this.heroPointerStrength > .08 ? 2 : 1);
+    // Engage only on actual glyph material. A one-cell hysteresis is allowed
+    // after engagement so the opening closes smoothly at the letter edge.
+    const directHit = canReact && this.heroHitTest(this.pointer.x, this.pointer.y, 0);
+    const hit = directHit || (canReact && this.heroPointerStrength > .12
+      && this.heroHitTest(this.pointer.x, this.pointer.y, 1));
     const targetStrength = hit ? 1 : 0;
-    this.heroPointerStrength += (targetStrength - this.heroPointerStrength) * (hit ? .3 : .19);
+    this.heroPointerStrength += (targetStrength - this.heroPointerStrength) * (hit ? .2 : .14);
     if (this.heroPointerStrength > .965) this.heroPointerStrength = 1;
     if (this.heroPointerStrength < .012) this.heroPointerStrength = 0;
     this.heroPointerEngaged = hit || this.heroPointerStrength > .08;
     let hovered = this.heroPointerStrength > 0;
     if (hovered) {
-      const radius = this.mobile ? 72 : 98;
+      const radius = this.mobile ? 52 : 74;
       const px = this.pointer.x;
       const py = this.pointer.y;
       const moved = Math.abs(px - this.heroPointerX) > 1 || Math.abs(py - this.heroPointerY) > 1;
       const settling = Math.abs(targetStrength - this.heroPointerStrength) > .045;
-      if ((moved || settling) && time - this.heroPointerDrawnAt > 42) {
+      if ((moved || settling) && time - this.heroPointerDrawnAt > 34) {
         const local = this.heroHoverContext;
         local.clearRect(0, 0, this.width, this.height);
         local.drawImage(this.heroDustCanvas, 0, 0, this.width, this.height);
@@ -833,15 +837,7 @@ export class DenomMatter {
   drawHeroPointer(context, radius, time, strength) {
     const px = this.pointer.x;
     const py = this.pointer.y;
-    const motion = Math.min(1, Math.hypot(this.pointer.velocityX, this.pointer.velocityY) / 18);
-    const angle = this.pointer.angle;
-    const axisX = Math.cos(angle);
-    const axisY = Math.sin(angle);
-    const normalX = -axisY;
-    const normalY = axisX;
-    const phase = this.pointer.angle * .37;
     const paths = Array.from({ length: 5 }, () => new Path2D());
-    const scatterPaths = Array.from({ length: 5 }, () => new Path2D());
     const erased = new Path2D();
     let affected = 0;
     for (const glyph of this.heroDust) {
@@ -850,37 +846,34 @@ export class DenomMatter {
         const originalY = glyph.screenY[index];
         const dx = originalX - px;
         const dy = originalY - py;
-        const along = dx * axisX + dy * axisY;
-        const across = dx * normalX + dy * normalY;
-        const warpedDistance = Math.hypot(along * .76, across * 1.18);
-        const theta = Math.atan2(across, along);
-        const grain = (index * .61803398875 + glyph.index * .37) % 1;
-        const contour = 1 + Math.sin(theta * 3 + phase + glyph.index) * .1
-          + Math.cos(theta * 5 - phase * .7) * .045;
-        const reach = radius * contour * (.92 + grain * .13);
-        if (warpedDistance >= reach) continue;
-        affected += 1;
         const distance = Math.hypot(dx, dy);
+        const theta = Math.atan2(dy, dx);
+        const grain = (index * .61803398875 + glyph.index * .37) % 1;
+        // Imperfect circle, like a soft pressure field passing through a dense
+        // material rather than a cursor-shaped glow.
+        const contour = 1 + Math.sin(theta * 3 + glyph.index * .7) * .045
+          + Math.cos(theta * 5 + grain * 2.2) * .025;
+        const reach = radius * contour * (.96 + grain * .08);
+        if (distance >= reach) continue;
+        affected += 1;
         const particleAngle = index * 2.399963229728653;
         const nx = distance > .01 ? dx / distance : Math.cos(particleAngle);
         const ny = distance > .01 ? dy / distance : Math.sin(particleAngle);
-        const variation = .78 + ((index * .75487766625) % 1) * .34;
-        const core = radius * (.37 + Math.sin(theta * 2 - phase) * .045
-          + ((index * .41421356237 + glyph.index * .19) % 1) * .055);
-        const influence = (1 - warpedDistance / reach) ** 1.45;
-        const bank = across >= 0 ? 1 : -1;
-        const force = influence * (glyph.depths[index] ? 36 : 29) * variation * strength;
-        const stream = Math.sin(theta * 2.4 + phase + grain * 4) * 6 * influence * strength;
-        const wake = (4 + motion * 11) * influence * strength;
-        const x = originalX + normalX * bank * force * .74 + nx * force * .32 + axisX * (stream + wake);
-        const y = originalY + normalY * bank * force * .74 + ny * force * .32 + axisY * (stream + wake);
-        const size = glyph.sizes[index] * (1 + glyph.positions[index * 3 + 2] / 350);
+        const normalized = clamp(distance / reach);
+        const core = radius * (.36 + (grain - .5) * .025);
+        // Compress source distances into a dense rim around an empty core.
+        const mapped = core + Math.pow(normalized, 1.72) * (reach - core);
+        const push = Math.max(0, mapped - distance) * strength;
+        const rim = Math.exp(-((normalized - .45) ** 2) / .055);
+        const tangent = Math.sin(theta * 3 + grain * 5) * rim * 2.6 * strength;
+        const depthPush = glyph.depths[index] ? .9 : 1.05;
+        const x = originalX + nx * push * depthPush - ny * tangent;
+        const y = originalY + ny * push * depthPush + nx * tangent;
+        const size = glyph.sizes[index] * (1 + glyph.positions[index * 3 + 2] / 350)
+          * (1 + rim * .3 * strength);
         const cover = size * .7 + .65;
         erased.rect(originalX - cover, originalY - cover, cover * 2, cover * 2);
-        // The centre opens into an asymmetric fissure. The surrounding grains
-        // split into two flowing banks instead of forming a cursor-shaped ring.
-        if (warpedDistance < core) continue;
-        const path = warpedDistance < core * 1.65 ? scatterPaths[glyph.tones[index]] : paths[glyph.tones[index]];
+        const path = paths[glyph.tones[index]];
         if (glyph.facets[index] === 1) {
           path.moveTo(x, y - size * .65);
           path.lineTo(x + size * .65, y);
@@ -905,8 +898,6 @@ export class DenomMatter {
       context.globalAlpha = opacity[tone] * strength;
       context.fillStyle = colors[tone];
       context.fill(paths[tone]);
-      context.globalAlpha = opacity[tone] * strength * .62;
-      context.fill(scatterPaths[tone]);
     }
     context.globalAlpha = 1;
     return affected > 0;
@@ -920,10 +911,10 @@ export class DenomMatter {
       this.motionTime = time;
       // A fast jump across several panels must not leave the object on a
       // different section for seconds while the text has already changed.
-      const separation = this.targetProgress - this.motionProgress;
-      if (Math.abs(separation) > .42) this.motionProgress = this.targetProgress - Math.sign(separation) * .42;
       const remaining = this.targetProgress - this.motionProgress;
-      const step = Math.min(Math.abs(remaining), Math.min(elapsed * .00078, Math.abs(remaining) * .22));
+      // The scroll controller is already smoothed. A second long-running lag
+      // desynchronised text and matter and made quick scrolls look broken.
+      const step = Math.min(Math.abs(remaining), Math.min(elapsed * .0017, Math.abs(remaining) * .34));
       this.motionProgress += Math.sign(remaining) * step;
       if (Math.abs(this.targetProgress - this.motionProgress) < .0001) this.motionProgress = this.targetProgress;
       this.scene = Math.min(Math.floor(this.motionProgress), this.shapes.length - 1);
@@ -949,6 +940,9 @@ export class DenomMatter {
     const phaseCos = Math.cos(phase);
     const phaseSin = Math.sin(phase);
 
+    const heroAssembled = scene === 0
+      ? (this.reduced ? 1 : softer(clamp((time - this.birth - 4600) / 2800)))
+      : 0;
     if (scene === 0) {
       const fade = 1 - smooth((this.local - 0.42) / 0.46);
       const breath = Math.sin((time - this.birth) * .00029);
@@ -967,8 +961,7 @@ export class DenomMatter {
     if (scene === 0) {
       const elapsed = time - this.birth;
       const cohesion = 1 - smooth(rawTransition / .075);
-      const assembled = this.reduced ? 1 : softer(clamp((elapsed - 4600) / 2800));
-      if (assembled > 0) this.paintHeroDust(context, time, cohesion * assembled);
+      if (heroAssembled > 0) this.paintHeroDust(context, time, cohesion * heroAssembled);
       context.globalAlpha = 1;
     }
 
@@ -1030,40 +1023,17 @@ export class DenomMatter {
         y += sine * breathe;
       }
 
-      let proximity = 0;
-      let cursorAlpha = 1;
-      if (this.heroPointerStrength > .02 && scene === 0 && rawTransition < .45) {
-        const dx = x - this.pointer.x;
-        const dy = y - this.pointer.y;
-        const axisX = Math.cos(this.pointer.angle);
-        const axisY = Math.sin(this.pointer.angle);
-        const normalX = -axisY;
-        const normalY = axisX;
-        const along = dx * axisX + dy * axisY;
-        const across = dx * normalX + dy * normalY;
-        const distance = Math.hypot(dx, dy) || 1;
-        const warpedDistance = Math.hypot(along * .76, across * 1.18);
-        const baseRadius = this.mobile ? 72 : 98;
-        const radius = baseRadius * (.9 + fract(seed * 13.37) * .14);
-        if (warpedDistance < radius) {
-          proximity = (1 - warpedDistance / radius) ** 1.5 * (1 - transition) * this.heroPointerStrength;
-          const bank = across >= 0 ? 1 : -1;
-          const offset = proximity * (15 + seed * 8);
-          x += normalX * bank * offset * .72 + dx / distance * offset * .28 + axisX * proximity * 6;
-          y += normalY * bank * offset * .72 + dy / distance * offset * .28 + axisY * proximity * 6;
-          const core = baseRadius * (.35 + fract(seed * 19.73) * .055);
-          const cut = smooth((warpedDistance - core * .62) / (core * .52));
-          cursorAlpha = mix(1, cut, this.heroPointerStrength * (1 - transition));
-        }
-      }
-
       const depthScale = scene === 0 ? 0.94 + depthLight * 0.28 : 0.74 + depthLight * 0.7;
-      const particleRadius = this.radius[index] * depthScale * (scene === 0 ? 1.72 : 1.68) * (1 - flight * 0.1) * (1 + proximity * .06);
+      const particleRadius = this.radius[index] * depthScale * (scene === 0 ? 1.72 : 1.68) * (1 - flight * 0.1);
       const twinkle = flight > .05 && index % 17 === 0 ? .8 + .2 * Math.sin(time * .0028 + angle * 4) : scene === 0 && rawTransition === 0 && index % 13 === 0 ? .9 + .1 * Math.sin(time * .00075 + angle * 4) : 1;
       const brightFleck = index % 31 === 0;
       const heroAlpha = (0.5 + seed * 0.08 + depthLight * 0.07) * (scene === 0 && rawTransition === 0 ? particleIntro : 1) * twinkle;
       const grainAlpha = (0.13 + seed * 0.05 + depthLight * 0.09 + (brightFleck ? 0.2 : 0)) * mix(.55, 1.28, materialLight);
-      const alpha = mix(heroAlpha, grainAlpha, objectMix) * cursorAlpha;
+      // Once the denser volumetric dust has formed, retire the coarse intro
+      // points. Keeping both fully visible caused doubled edges and two
+      // conflicting hover reactions.
+      const heroMainVisibility = scene === 0 && rawTransition === 0 ? 1 - heroAssembled * .9 : 1;
+      const alpha = mix(heroAlpha, grainAlpha, objectMix) * heroMainVisibility;
       const spriteSize = particleRadius * mix(3.75, brightFleck ? 4.2 : 1.9, objectMix);
       // Reserve soft sprites for highlights. Batch the rest into five tones:
       // thousands of individual drawImage calls stalled scroll rendering.
