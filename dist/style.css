@@ -31,6 +31,17 @@ body {
   font: 400 16px/1.45 "Helvetica Neue", "Segoe UI", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  opacity: .022;
+  background: repeating-linear-gradient(180deg, transparent 0 2px, rgba(214, 246, 255, .22) 3px, transparent 4px);
+  mix-blend-mode: soft-light;
+  contain: strict;
+}
 body.app-open { overflow: hidden; }
 body.app-open main,
 body.app-open #matter,
@@ -90,6 +101,7 @@ body[data-scene="0"] .ambient::before { opacity: .55; }
   transition: opacity .6s, visibility .6s;
 }
 .loader strong { font-family: "Denom Display", Georgia, serif; font-size: clamp(2rem, 5vw, 4.5rem); font-weight: 700; letter-spacing: -.035em; }
+.loader small { margin-top: -10px; color: #6f8c9d; font-size: .62rem; letter-spacing: .22em; }
 .loader div { width: 210px; height: 1px; background: rgba(151, 224, 255, .18); }
 .loader i { display: block; width: 0; height: 100%; background: var(--azure); animation: load .82s cubic-bezier(.2, .8, .2, 1) forwards; }
 .loaded .loader { opacity: 0; visibility: hidden; }
