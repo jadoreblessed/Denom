@@ -1080,4 +1080,4 @@ document.fonts.load('700 420px "Denom Display"').catch(() => {}).then(() => requ
   matter?.start();
   setTimeout(finishLoading, reduced ? 80 : 420);
 }));
-setTimeout(finishLoading, 3200);
+setTimeout(finishLoading, 2350);
