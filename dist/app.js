@@ -109,7 +109,11 @@ function paintScroll() {
   // One shared crossfade keeps copy and matter on the same beat. The previous
   // combination faded the fixed panel and every child a second time, leaving
   // a nearly blank frame in the middle of a section hand-off.
-  const nextEnter = !reduced && active < scenes.length - 1 ? smooth((local - .48) / .42) : 0;
+  // Keep the long material flight, but do not stack two oversized headlines.
+  // The outgoing copy clears first; the incoming copy then resolves while the
+  // particle object is still travelling between its two shapes.
+  const activeExit = active === scenes.length - 1 || reduced ? 1 : 1 - smooth((local - .44) / .18);
+  const nextEnter = !reduced && active < scenes.length - 1 ? smooth((local - .61) / .25) : 0;
   scenes.forEach((scene, index) => {
     const upcoming = index === active + 1;
     if (index !== active && !upcoming && scene.dataset.inactive === 'true') return;
@@ -118,8 +122,7 @@ function paintScroll() {
     const inner = scene.querySelector('.scene-inner');
     let opacity = 0;
     if (index === active) {
-      const exit = active === scenes.length - 1 ? 1 : 1 - nextEnter;
-      opacity = exit;
+      opacity = activeExit;
     } else if (upcoming) {
       opacity = nextEnter;
     }

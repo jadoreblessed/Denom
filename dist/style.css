@@ -37,7 +37,7 @@ body::after {
   inset: 0;
   z-index: 90;
   pointer-events: none;
-  opacity: .022;
+  opacity: .008;
   background: repeating-linear-gradient(180deg, transparent 0 2px, rgba(214, 246, 255, .22) 3px, transparent 4px);
   mix-blend-mode: soft-light;
   contain: strict;
@@ -67,10 +67,24 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   position: absolute;
   inset: 0;
   background: linear-gradient(180deg, rgba(7, 18, 28, .12), rgba(9, 22, 34, .07) 54%, #102638 100%), url('assets/galaxy-hero.webp') center / cover no-repeat;
-  opacity: 0;
+  opacity: .2;
+  transform: scale(1.035);
   transition: opacity 1.25s ease;
+  animation: galaxy-breathe 32s ease-in-out infinite alternate;
 }
-body[data-scene="0"] .ambient::before { opacity: .55; }
+body[data-scene="0"] .ambient::before { opacity: .46; }
+.ambient::after {
+  content: "";
+  position: absolute;
+  inset: -12%;
+  background:
+    radial-gradient(ellipse 42% 24% at 22% 27%, rgba(89, 198, 236, .13), transparent 72%),
+    radial-gradient(ellipse 36% 21% at 77% 63%, rgba(66, 124, 255, .1), transparent 75%),
+    radial-gradient(ellipse 52% 18% at 55% 103%, rgba(68, 195, 229, .09), transparent 76%);
+  opacity: .62;
+  transform: translate3d(-1.2%, 0, 0) rotate(-2deg);
+  animation: ambient-tide 26s ease-in-out infinite alternate;
+}
 .ambient i { position: absolute; display: block; width: 82vw; height: 82vw; border-radius: 50%; opacity: .46; }
 .ambient i:nth-child(1) { left: -34vw; top: -26vw; background: radial-gradient(circle, rgba(21, 104, 166, .38), rgba(23, 111, 180, 0) 69%); }
 .ambient i:nth-child(2) { right: -28vw; top: -38vw; background: radial-gradient(circle, rgba(104, 205, 236, .25), rgba(66, 217, 255, 0) 70%); }
@@ -101,7 +115,6 @@ body[data-scene="0"] .ambient::before { opacity: .55; }
   transition: opacity .6s, visibility .6s;
 }
 .loader strong { font-family: "Denom Display", Georgia, serif; font-size: clamp(2rem, 5vw, 4.5rem); font-weight: 700; letter-spacing: -.035em; }
-.loader small { margin-top: -10px; color: #6f8c9d; font-size: .62rem; letter-spacing: .22em; }
 .loader div { width: 210px; height: 1px; background: rgba(151, 224, 255, .18); }
 .loader i { display: block; width: 0; height: 100%; background: var(--azure); animation: load .82s cubic-bezier(.2, .8, .2, 1) forwards; }
 .loaded .loader { opacity: 0; visibility: hidden; }
@@ -124,14 +137,16 @@ body[data-scene="0"] .ambient::before { opacity: .55; }
 .loaded .glass-wallet { animation: interface-in 1.08s .36s both cubic-bezier(.2,.78,.2,1); }
 .wordmark { display: inline-flex; align-items: center; gap: 9px; width: max-content; font-size: 1.15rem; letter-spacing: -.05em; }
 .wordmark b { font-family: "Denom Display", Georgia, serif; font-weight: 700; letter-spacing: -.015em; }
-.wordmark img { display: block; width: 27px; height: 27px; flex: 0 0 27px; filter: drop-shadow(0 0 9px rgba(72, 200, 248, .18)); }
+.wordmark img { display: block; width: 31px; height: 31px; flex: 0 0 31px; object-fit: contain; filter: drop-shadow(0 0 10px rgba(104, 200, 255, .24)); }
 .topbar nav {
   justify-self: center;
   display: flex;
   padding: 4px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(3, 9, 15, .68);
+  background: rgba(3, 12, 20, .62);
+  -webkit-backdrop-filter: blur(18px) saturate(115%);
+  backdrop-filter: blur(18px) saturate(115%);
   box-shadow: inset 0 1px 0 rgba(224, 249, 255, .08), 0 18px 55px rgba(0, 0, 0, .35);
   overflow-x: auto;
   scrollbar-width: none;
@@ -143,8 +158,8 @@ body[data-scene="0"] .ambient::before { opacity: .55; }
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: #8294a1;
-  font-size: .78rem;
+  color: #9bafb9;
+  font-size: .8rem;
   white-space: nowrap;
   transition: color .25s, background .25s;
 }
@@ -163,6 +178,8 @@ body[data-scene="0"] .ambient::before { opacity: .55; }
   border: 1px solid rgba(255, 255, 255, .94);
   border-radius: 999px;
   background: linear-gradient(180deg, #ffffff, #edf6f8);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+  backdrop-filter: blur(14px) saturate(120%);
   color: #07111a;
   box-shadow: inset 0 1px 0 #fff, inset 0 -7px 16px rgba(33, 85, 106, .1), 0 18px 45px rgba(0, 0, 0, .38);
   transition: transform .22s ease, box-shadow .22s ease;
@@ -295,22 +312,17 @@ body[data-scene="0"] .ambient::before { opacity: .55; }
 }
 .currency-legend-top { top: 13vh; }
 .currency-legend-bottom { bottom: 8vh; }
-.currency-legend i {
-  display: inline-block;
-  width: 4px;
-  height: 4px;
-  margin: 0 10px 2px;
-  border-radius: 50%;
-  background: var(--azure);
-  box-shadow: 0 0 12px var(--azure);
-  animation: currency-beacon 4s ease-in-out infinite;
-}
 .currency-legend.motion-detail { transform: translate3d(0, var(--motion-y, 24px), 0); }
 @keyframes currency-field-breathe { to { opacity: .62; transform: translate3d(2vw, -1vh, 0) scale(1.07); } }
-@keyframes currency-beacon { 50% { opacity: .35; box-shadow: 0 0 3px var(--azure); } }
 @keyframes currency-orbit-one { to { transform: rotate(-13deg) scale(.97); } }
 @keyframes currency-orbit-two { to { transform: rotate(8deg) scale(1.04); } }
 @keyframes currency-orbit-three { to { transform: rotate(90deg) scale(.95); } }
+@keyframes galaxy-breathe {
+  to { transform: scale(1.075) translate3d(-.8%, .6%, 0); }
+}
+@keyframes ambient-tide {
+  to { transform: translate3d(1.6%, -1.2%, 0) rotate(2deg) scale(1.035); opacity: .78; }
+}
 .copy-final-left { left: var(--pad); top: 51%; width: min(285px, 22vw); }
 .copy-final-right { right: var(--pad); top: 51%; width: min(285px, 22vw); text-align: right; }
 
