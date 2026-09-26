@@ -119,8 +119,8 @@ function paintScroll() {
   // Keep the long material flight, but do not stack two oversized headlines.
   // The outgoing copy clears first; the incoming copy then resolves while the
   // particle object is still travelling between its two shapes.
-  const activeExit = active === scenes.length - 1 || reduced ? 1 : 1 - smooth((local - .44) / .18);
-  const nextEnter = !reduced && active < scenes.length - 1 ? smooth((local - .61) / .25) : 0;
+  const activeExit = active === scenes.length - 1 || reduced ? 1 : 1 - smooth((local - .65) / .28);
+  const nextEnter = !reduced && active < scenes.length - 1 ? smooth((local - .68) / .3) : 0;
   scenes.forEach((scene, index) => {
     const upcoming = index === active + 1;
     if (index !== active && !upcoming && scene.dataset.inactive === 'true') return;
@@ -281,7 +281,7 @@ function renderMarkets() {
   }
   marketBody.innerHTML = visible.map((market, index) => {
     const meta = unitMeta[market.unit] || { icon: 'assets/icons/usdg.svg' };
-    return `<button class="market-row" type="button" data-market-id="${market.id}" aria-label="Open ${market.name} market"><span class="coin-cell"><em>${String(index + 1).padStart(2,'0')}</em><i class="coin-mark"><img src="${market.logo}" alt="${market.name}" loading="lazy"></i><strong>${market.name}<small>${market.ticker}</small></strong></span><b class="unit-cell"><img src="${meta.icon}" alt=""><span>${market.unit}</span></b><span>${formatMarketPrice(market)}</span><span>$${market.cap.toLocaleString()}</span><span class="curve-state ${market.curve === 100 ? 'complete' : ''}"><label>${market.curve === 100 ? 'Graduated' : 'Bonding curve'} <b>${market.curve === 100 ? '100' : market.curve.toFixed(1)}%</b></label><i style="--p:${market.curve}%"></i></span></button>`;
+    return `<button class="market-row" type="button" data-market-id="${market.id}" aria-label="Open ${escapeHtml(market.name)} market"><span class="coin-cell"><em>${String(index + 1).padStart(2,'0')}</em><i class="coin-mark"><img src="${escapeHtml(market.logo)}" alt="${escapeHtml(market.name)}" loading="lazy"></i><strong>${escapeHtml(market.name)}<small>${escapeHtml(market.ticker)}</small></strong></span><b class="unit-cell"><img src="${escapeHtml(meta.icon)}" alt=""><span>${escapeHtml(market.unit)}</span></b><span>${escapeHtml(formatMarketPrice(market))}</span><span>$${market.cap.toLocaleString()}</span><span class="curve-state ${market.curve === 100 ? 'complete' : ''}"><label>${market.curve === 100 ? 'Graduated' : 'Bonding curve'} <b>${market.curve === 100 ? '100' : market.curve.toFixed(1)}%</b></label><i style="--p:${market.curve}%"></i></span></button>`;
   }).join('');
   marketEmpty.hidden = result.length !== 0;
   loadMarkets.hidden = result.length <= marketLimit;
@@ -607,11 +607,30 @@ const launchPairMenu = document.querySelector('#launch-pair-menu');
 let activeLaunchPair = 'EUR';
 let activeLaunchQuote = '';
 
+function syncArt(form, field, preview, target, fallback) {
+  const value = form.elements.namedItem(field).value.trim();
+  let imageUrl = '';
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol === 'https:' && !parsed.username && !parsed.password) imageUrl = parsed.href;
+  } catch {}
+  const art = form.querySelector('.art-preview');
+  art.hidden = !imageUrl;
+  if (!imageUrl) { art.removeAttribute('src'); target.textContent = fallback; return; }
+  art.src = imageUrl;
+  const picture = document.createElement('img');
+  picture.src = imageUrl;
+  picture.alt = preview;
+  picture.onerror = () => { target.textContent = fallback; art.hidden = true; };
+  target.replaceChildren(picture);
+}
+
 function syncLaunch() {
   const name = launchName?.value.trim() || 'Your next big idea';
   const ticker = launchTicker?.value.trim().toUpperCase() || 'TICKER';
   document.querySelector('#launch-name').firstChild.textContent = name;
   document.querySelector('#launch-ticker').textContent = `${ticker} · ${activeLaunchPair}`;
+  syncArt(launchForm, 'logo', 'Coin logo', document.querySelector('#launch-symbol'), ticker.slice(0, 2));
 }
 
 function syncFees() {
@@ -622,7 +641,7 @@ function syncFees() {
   document.querySelector('#summary-fee').textContent = `${total.toFixed(2)}% total`;
 }
 
-[launchName, launchTicker].forEach(input => input?.addEventListener('input', syncLaunch));
+[launchName, launchTicker, launchForm.elements.namedItem('logo')].forEach(input => input?.addEventListener('input', syncLaunch));
 [creatorFee].forEach(input => input?.addEventListener('input', syncFees));
 
 launchPairSelect?.addEventListener('click', () => {
@@ -655,12 +674,6 @@ launchPairMenu?.addEventListener('click', event => {
   if (button) chooseLaunchPair(button);
 });
 
-document.querySelectorAll('[data-pay]').forEach(button => {
-  button.addEventListener('click', () => {
-    document.querySelector('#pay-symbol').textContent = button.dataset.pay;
-  });
-});
-
 const pairForm = document.querySelector('#pair-form');
 function syncPair() {
   const name = pairForm.elements.namedItem('pair-name').value.trim() || 'Untitled pair';
@@ -671,6 +684,7 @@ function syncPair() {
   document.querySelector('#pair-preview-code').textContent = code;
   document.querySelector('#pair-preview-value').textContent = `$${value.toLocaleString(undefined, { maximumFractionDigits: 6 })}`;
   document.querySelector('.preview-token').textContent = ticker.slice(0, 2);
+  syncArt(pairForm, 'pair-logo', 'Unit logo', document.querySelector('.preview-token'), ticker.slice(0, 2));
 }
 pairForm?.querySelectorAll('input').forEach(input => input.addEventListener('input', syncPair));
 
@@ -809,6 +823,7 @@ pairForm?.addEventListener('submit', async event => {
       ticker: pairForm.elements.namedItem('pair-ticker').value.trim().toUpperCase(),
       code: pairForm.elements.namedItem('pair-code').value.trim().toUpperCase(),
       description: pairForm.elements.namedItem('pair-description').value.trim(),
+      logo: pairForm.elements.namedItem('pair-logo').value.trim(),
       referencePrice: Number(pairForm.elements.namedItem('pair-value').value)
     });
     pairForm.reset();
@@ -847,7 +862,6 @@ swapPanel?.addEventListener('submit', async event => {
     button.querySelector('b').textContent = activeQuoteAsset ? `${swapMode === 'buy' ? 'Buy' : 'Sell'} ${activeQuoteAsset.code}` : 'Choose a unit';
   }
 });
-document.querySelectorAll('.art-drop').forEach(button => button.addEventListener('click', () => showToast('A deterministic onchain mark is generated from the ticker.')));
 document.querySelectorAll('.add-pair').forEach(button => button.addEventListener('click', () => openApp('make-pair')));
 
 function walletLabel(address) {
@@ -883,6 +897,7 @@ async function refreshProtocol() {
   const address = document.querySelector('#protocol-address');
   const deploy = document.querySelector('#deploy-protocol');
   const copy = document.querySelector('#copy-protocol');
+  const share = document.querySelector('#share-protocol');
   const faucet = document.querySelector('#test-faucet');
   if (!chainReady) return;
   if (!chain.configured) {
@@ -890,6 +905,7 @@ async function refreshProtocol() {
     address.textContent = 'Wallet deployment creates the factory and test USDG contracts.';
     deploy.hidden = false;
     copy.hidden = true;
+    share.hidden = true;
     faucet.hidden = true;
     return;
   }
@@ -897,6 +913,7 @@ async function refreshProtocol() {
   address.textContent = `Factory ${chain.factoryAddress}\nQuote ${chain.quoteAddress}`;
   deploy.hidden = true;
   copy.hidden = false;
+  share.hidden = false;
   faucet.hidden = false;
   try {
     const [liveMarkets, assets] = await Promise.all([chain.loadMarkets(), chain.loadQuoteAssets()]);
@@ -916,6 +933,11 @@ async function refreshProtocol() {
 document.querySelector('#copy-protocol')?.addEventListener('click', async () => {
   await navigator.clipboard.writeText(`Factory: ${chain.factoryAddress}\nQuote token: ${chain.quoteAddress}`);
   showToast('Contract addresses copied.');
+});
+
+document.querySelector('#share-protocol')?.addEventListener('click', async () => {
+  await navigator.clipboard.writeText(chain.shareUrl());
+  showToast('Test market link copied. Anyone with this link can read the same testnet contracts.');
 });
 
 document.querySelector('#deploy-protocol')?.addEventListener('click', async event => {
@@ -967,6 +989,7 @@ document.querySelector('#confirm-launch')?.addEventListener('click', async event
       ticker: launchTicker.value.trim().toUpperCase(),
       unit: activeLaunchPair,
       description: launchForm.elements.namedItem('description').value.trim(),
+      logo: launchForm.elements.namedItem('logo').value.trim(),
       creatorFee: Number(creatorFee.value || 0),
       quoteToken: activeLaunchQuote || chain.quoteAddress
     });

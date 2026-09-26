@@ -39,6 +39,16 @@ function logoData(ticker) {
   return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
+function logoFrom(input, ticker) {
+  if (!input) return logoData(ticker);
+  if (input.length > 500) throw new Error('Logo URL is too long.');
+  try {
+    const url = new URL(input);
+    if (url.protocol === 'https:' && !url.username && !url.password) return url.href;
+  } catch {}
+  throw new Error('Logo must be a public HTTPS image URL.');
+}
+
 export class DenomChain {
   constructor() {
     this.readProvider = new JsonRpcProvider(CHAIN.rpc, CHAIN.id, { staticNetwork: true });
@@ -72,12 +82,31 @@ export class DenomChain {
     this.tokenAbi = token.abi;
     this.quoteAbi = quote.abi;
     this.quoteAssetAbi = quoteAsset.abi;
-    if (Number(deployment.chainId) === CHAIN.id) {
-      if (!this.factoryAddress && isAddress(deployment.factory)) this.factoryAddress = deployment.factory;
-      if (!this.quoteAddress && isAddress(deployment.quoteToken)) this.quoteAddress = deployment.quoteToken;
-      if (!this.deploymentBlock) this.deploymentBlock = Number(deployment.deploymentBlock || 0);
+    // Published configuration is authoritative; a shared testnet link is the
+    // fallback until the owner publishes addresses. Personal deployments live
+    // only in local storage and must never override the public market.
+    const params = new URLSearchParams(location.search);
+    const shared = { factory:params.get('factory'), quoteToken:params.get('quote'), deploymentBlock:params.get('block') };
+    const publicConfig = Number(deployment.chainId) === CHAIN.id
+      && isAddress(deployment.factory) && isAddress(deployment.quoteToken);
+    const sharedConfig = isAddress(shared.factory || '') && isAddress(shared.quoteToken || '');
+    if (publicConfig || sharedConfig) {
+      const chosen = publicConfig ? deployment : shared;
+      this.factoryAddress = chosen.factory;
+      this.quoteAddress = chosen.quoteToken;
+      this.deploymentBlock = Math.max(0, Number(chosen.deploymentBlock) || 0);
     }
     return this;
+  }
+
+  shareUrl() {
+    if (!this.configured) return '';
+    const url = new URL(location.href);
+    url.searchParams.set('factory', this.factoryAddress);
+    url.searchParams.set('quote', this.quoteAddress);
+    url.searchParams.set('block', String(this.deploymentBlock || 0));
+    url.hash = '';
+    return url.href;
   }
 
   async connect() {
@@ -166,12 +195,12 @@ export class DenomChain {
     };
   }
 
-  async createQuoteAsset({ name, ticker, code, description = '', referencePrice }) {
+  async createQuoteAsset({ name, ticker, code, description = '', logo = '', referencePrice }) {
     if (!this.signer) await this.connect();
     if (!this.configured) throw new Error('Deploy the protocol before creating a unit.');
     const factory = new Contract(this.factoryAddress, this.factoryAbi, this.signer);
     const metadataURI = `data:application/json,${encodeURIComponent(JSON.stringify({
-      name, symbol: ticker, description, image: logoData(ticker)
+      name, symbol: ticker, description, image: logoFrom(logo, ticker)
     }))}`;
     const transaction = await factory.createQuoteAsset(
       name, ticker, code, metadataURI, parseUnits(String(referencePrice), 18)
@@ -259,12 +288,12 @@ export class DenomChain {
     };
   }
 
-  async launch({ name, ticker, unit, description = '', creatorFee = 0, quoteToken = this.quoteAddress }) {
+  async launch({ name, ticker, unit, description = '', logo = '', creatorFee = 0, quoteToken = this.quoteAddress }) {
     if (!this.signer) await this.connect();
     if (!this.configured) throw new Error('Deploy the protocol before launching a market.');
     const factory = new Contract(this.factoryAddress, this.factoryAbi, this.signer);
     const metadataURI = `data:application/json,${encodeURIComponent(JSON.stringify({
-      name, symbol: ticker, description, image: logoData(ticker)
+      name, symbol: ticker, description, image: logoFrom(logo, ticker)
     }))}`;
     const transaction = await factory.createMarket(
       quoteToken, name, ticker, unit, metadataURI,

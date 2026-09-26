@@ -153,19 +153,17 @@
             <section class="form-section">
               <header><b>01</b><div><h3>Create your identity</h3><p>A name and a story your community can get behind.</p></div></header>
               <div class="identity-grid">
-                <button type="button" class="art-drop"><span>＋</span>Add art</button>
+                <label class="art-drop"><img class="art-preview" alt="Coin logo preview" hidden><span>＋</span>Coin logo<small>Public HTTPS image URL. Saved with the coin.</small><input name="logo" type="url" pattern="https://.*" maxlength="500" placeholder="https://example.com/coin.png"></label>
                 <div class="field-stack">
                   <label>Name<small>Shown everywhere the coin appears.</small><input name="name" maxlength="32" placeholder="Maple" required></label>
                   <label>Ticker<small>Two to ten characters, no spaces.</small><input name="ticker" maxlength="10" placeholder="MAPLE" required></label>
                 </div>
                 <label class="wide">Description<small>Optional. What the coin is about.</small><textarea name="description" maxlength="180" placeholder="A coin for people who like maple syrup."></textarea></label>
-                <div class="link-fields wide"><label>X handle<input placeholder="@project"></label><label>Telegram<input placeholder="t.me/project"></label><label>Website<input placeholder="project.xyz"></label></div>
               </div>
             </section>
             <section class="form-section terms-section">
               <header><b>02</b><div><h3>Set your terms</h3><p>Choose the unit at the heart of your coin.</p></div></header>
-              <label class="field-title">Pair<small>Fixed at launch. Add up to five.</small></label>
-              <div class="segmented pair-kind"><button type="button" class="active">A listed pair</button><button type="button">Made by someone</button><button type="button">Any token</button></div>
+              <label class="field-title">Pair<small>Fixed at launch. Choose a unit available on this test market.</small></label>
               <button class="pair-select" type="button" id="launch-pair-select" aria-expanded="false" aria-controls="launch-pair-menu"><i><img src="assets/icons/flag-eu.svg" alt=""></i><strong>EUR <small>Euro</small></strong><span>⌄</span></button>
               <div class="pair-menu" id="launch-pair-menu" hidden>
                 <button type="button" data-launch-pair="EUR" data-name="Euro" data-icon="assets/icons/flag-eu.svg"><img src="assets/icons/flag-eu.svg" alt=""><strong>EUR<small>Euro</small></strong><span>Selected</span></button>
@@ -173,23 +171,21 @@
                 <button type="button" data-launch-pair="JPY" data-name="Japanese Yen" data-icon="assets/icons/flag-jp.svg"><img src="assets/icons/flag-jp.svg" alt=""><strong>JPY<small>Japanese Yen</small></strong><span></span></button>
                 <button type="button" data-launch-pair="GOLD" data-name="Gold / oz" data-icon="assets/icons/gold.svg"><img src="assets/icons/gold.svg" alt=""><strong>GOLD<small>Gold / oz</small></strong><span></span></button>
               </div>
-              <button class="add-pair" type="button">＋ Add another pair</button>
               <div class="fee-box">
                 <label>Creator tax <small>Your cut of every trade.</small><output id="creator-output">0.00%</output><input id="creator-fee" type="range" min="0" max="5" step=".5" value="0"></label>
                 <label>Protocol fee <small>Fixed for every market.</small><output>1.00%</output><input type="range" min="1" max="1" value="1" disabled></label>
                 <div class="total-fee"><span>Every trade costs</span><strong id="total-fee">1.00%</strong></div>
               </div>
-              <label class="field-title">Pay your first buy with<small>It is swapped for the pair in the same transaction.</small></label>
-              <div class="segmented pay-kind"><button type="button" class="active" data-pay="ETH"><img src="assets/icons/eth.svg" alt="">ETH</button><button type="button" data-pay="USDG"><img src="assets/icons/usdg.svg" alt="">USDG</button><button type="button" data-pay="EUR"><img src="assets/icons/flag-eu.svg" alt="">EUR</button></div>
-              <label class="amount-field">First buy<input name="first-buy" type="number" min="0" step="any" placeholder="0.00"><b id="pay-symbol">USDG</b></label>
+              <label class="field-title">First buy<small>Optional. Paid in the chosen unit in a separate wallet transaction after launch.</small></label>
+              <label class="amount-field">Amount<input name="first-buy" type="number" min="0" step="any" placeholder="0.00"><b id="pay-symbol">EUR</b></label>
             </section>
           </div>
           <aside class="launch-summary">
             <span>YOUR LAUNCH AT A GLANCE</span>
             <div class="summary-identity"><i id="launch-symbol">✳</i><strong id="launch-name">Your next big idea<small id="launch-ticker">TICKER · EUR</small></strong></div>
             <dl><div><dt>Priced in</dt><dd>EUR Euro</dd></div><div><dt>Curve supply</dt><dd>1,000,000,000 tokens</dd></div><div><dt>Trade fee</dt><dd id="summary-fee">1.00% total</dd></div><div><dt>Launch fee</dt><dd>network gas only</dd></div><div><dt>Tradable</dt><dd>from the first block</dd></div></dl>
-            <ul><li>Name the coin</li><li>Give it a ticker</li><li>Enter a first buy</li></ul>
-            <div class="protocol-panel" id="protocol-panel"><span>ROBINHOOD TESTNET</span><strong id="protocol-state">Checking protocol…</strong><small id="protocol-address">Onchain launch, curve and settlement.</small><button type="button" id="deploy-protocol" hidden>Deploy test protocol</button><button type="button" id="copy-protocol" hidden>Copy contract addresses</button><button type="button" id="test-faucet" hidden>Mint test USDG</button></div>
+            <ul><li>Name the coin</li><li>Give it a ticker</li><li>Choose its unit</li></ul>
+            <div class="protocol-panel" id="protocol-panel"><span>ROBINHOOD TESTNET</span><strong id="protocol-state">Checking protocol…</strong><small id="protocol-address">Onchain launch, curve and settlement.</small><button type="button" id="deploy-protocol" hidden>Deploy test protocol</button><button type="button" id="copy-protocol" hidden>Copy contract addresses</button><button type="button" id="share-protocol" hidden>Copy test market link</button><button type="button" id="test-faucet" hidden>Mint test USDG</button></div>
             <button type="submit" class="primary-action">Review launch</button>
           </aside>
         </form>
@@ -199,7 +195,7 @@
         <header class="product-heading simple"><div><span>MAKE A PAIR</span><h2>Invent a unit</h2><p>Say what one is worth and put the whole supply on sale at that price.</p></div></header>
         <form class="pair-form" id="pair-form">
           <div class="pair-fields">
-            <button type="button" class="art-drop"><span>＋</span>Add art</button>
+            <label class="art-drop"><img class="art-preview" alt="Unit logo preview" hidden><span>＋</span>Unit logo<small>Public HTTPS image URL. Saved with the unit.</small><input name="pair-logo" type="url" pattern="https://.*" maxlength="500" placeholder="https://example.com/unit.png"></label>
             <div class="field-stack">
               <label>Name<small>Shown everywhere the pair appears.</small><input name="pair-name" placeholder="Cash Cat" required></label>
               <label>Ticker<small>Two to ten characters, no spaces.</small><input name="pair-ticker" placeholder="CASHCAT" required></label>
