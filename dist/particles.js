@@ -133,7 +133,7 @@ export class DenomMatter {
     const baseCount = innerWidth < 680 ? (cores < 6 ? 850 : 1100) : innerWidth < 1100 ? (cores < 6 ? 1450 : 1850) : (cores < 6 ? 1950 : 2350);
     this.heroExtra = innerWidth < 680 ? 120 : innerWidth < 1100 ? 180 : 240;
     this.count = baseCount + this.heroExtra;
-    this.frameInterval = innerWidth < 680 ? 32 : 24;
+    this.frameInterval = innerWidth < 680 ? 24 : 16;
     this.slowFrames = 0;
     this.fastFrames = 0;
     this.seed = new Float32Array(this.count);
@@ -144,7 +144,7 @@ export class DenomMatter {
     this.radius = new Float32Array(this.count);
     this.tint = new Uint8Array(this.count);
     this.variant = new Uint8Array(this.count);
-    this.detailCount = innerWidth < 680 ? 4200 : innerWidth < 1100 ? 6000 : 7200;
+    this.detailCount = innerWidth < 680 ? 2200 : innerWidth < 1100 ? 3200 : 4200;
     this.detailPointA = new Float32Array(3);
     this.detailPointB = new Float32Array(3);
     this.detailCos = new Float32Array(this.detailCount);
@@ -447,16 +447,16 @@ export class DenomMatter {
   fillCurrencies(output, light, count, random) {
     const positions = this.width < 900
       ? [
-          { symbol: '€', x: -.17, y: -.22, z: -.045, width: .087, tilt: -.13 },
-          { symbol: '$', x: .18, y: -.21, z: .095, width: .09, tilt: .11 },
-          { symbol: '¥', x: -.16, y: .23, z: .085, width: .085, tilt: -.09 },
-          { symbol: '£', x: .18, y: .23, z: -.065, width: .085, tilt: .14 }
+          { symbol: '€', x: -.21, y: -.37, z: -.045, width: .12, tilt: -.1 },
+          { symbol: '$', x: -.21, y: -.12, z: .095, width: .12, tilt: .08 },
+          { symbol: '¥', x: -.21, y: .12, z: .085, width: .12, tilt: -.07 },
+          { symbol: '£', x: -.21, y: .37, z: -.065, width: .12, tilt: .1 }
         ]
       : [
-          { symbol: '€', x: -.26, y: -.23, z: -.045, width: .104, tilt: -.18 },
-          { symbol: '$', x: .25, y: -.23, z: .095, width: .112, tilt: .14 },
-          { symbol: '¥', x: -.22, y: .25, z: .085, width: .102, tilt: -.12 },
-          { symbol: '£', x: .26, y: .25, z: -.065, width: .103, tilt: .17 }
+          { symbol: '€', x: -.34, y: -.36, z: -.045, width: .083, tilt: -.12 },
+          { symbol: '$', x: -.34, y: -.12, z: .095, width: .086, tilt: .08 },
+          { symbol: '¥', x: -.34, y: .12, z: .085, width: .083, tilt: -.07 },
+          { symbol: '£', x: -.34, y: .36, z: -.065, width: .083, tilt: .1 }
         ];
     const glyphs = positions.map(glyph => ({ ...glyph, mask: this.textPoints(glyph.symbol, 420, 700) }));
     for (let index = 0; index < count; index += 1) {
@@ -665,11 +665,11 @@ export class DenomMatter {
       if (drawTime > 20) {
         this.slowFrames += 1;
         this.fastFrames = 0;
-        if (this.slowFrames >= 8) this.frameInterval = this.mobile ? 36 : 31;
+        if (this.slowFrames >= 8) this.frameInterval = this.mobile ? 32 : 24;
       } else if (drawTime < 17) {
         this.fastFrames += 1;
         this.slowFrames = 0;
-        if (this.fastFrames >= 24) this.frameInterval = this.mobile ? 32 : 24;
+        if (this.fastFrames >= 24) this.frameInterval = this.mobile ? 24 : 16;
       } else {
         this.slowFrames = 0;
         this.fastFrames = 0;
@@ -989,7 +989,11 @@ export class DenomMatter {
     const toFrame = this.frameFor(next);
     // Let the material travel for most of the panel, with only the endpoints
     // softened. The former quintic easing hid the journey in a short middle beat.
-    const rawTransition = next === scene ? 0 : clamp((this.local - .1) / .86);
+    // Hold each finished sculpture through most of its section; begin the
+    // inter-section flight with the outgoing copy, then arrive before the new
+    // headline settles. The previous full-section morph left every object as
+    // a cloud for most of the scroll.
+    const rawTransition = next === scene ? 0 : clamp((this.local - .52) / .42);
     const transition = rawTransition < .08 ? .08 * smooth(rawTransition / .08)
       : rawTransition > .92 ? .92 + .08 * smooth((rawTransition - .92) / .08) : rawTransition;
     const flight = Math.sin(transition * Math.PI);

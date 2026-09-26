@@ -119,8 +119,8 @@ function paintScroll() {
   // Keep the long material flight, but do not stack two oversized headlines.
   // The outgoing copy clears first; the incoming copy then resolves while the
   // particle object is still travelling between its two shapes.
-  const activeExit = active === scenes.length - 1 || reduced ? 1 : 1 - smooth((local - .65) / .28);
-  const nextEnter = !reduced && active < scenes.length - 1 ? smooth((local - .68) / .3) : 0;
+  const activeExit = active === scenes.length - 1 || reduced ? 1 : 1 - smooth((local - .58) / .12);
+  const nextEnter = !reduced && active < scenes.length - 1 ? smooth((local - .84) / .14) : 0;
   scenes.forEach((scene, index) => {
     const upcoming = index === active + 1;
     if (index !== active && !upcoming && scene.dataset.inactive === 'true') return;

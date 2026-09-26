@@ -346,8 +346,31 @@ body[data-scene="3"] .ambient::before { opacity: .18; filter: hue-rotate(32deg) 
   white-space: nowrap;
 }
 .currency-legend-top { top: 13vh; }
-.currency-legend-bottom { bottom: 8vh; }
+.currency-legend-top i { margin-left: 9px; color: var(--ice); font-style: normal; }
 .currency-legend.motion-detail { transform: translate3d(0, var(--motion-y, 24px), 0); }
+.currency-roster {
+  position: absolute;
+  z-index: 4;
+  top: 37vh;
+  right: var(--pad);
+  width: min(410px, 32vw);
+  border-top: 1px solid rgba(178, 224, 241, .2);
+  border-bottom: 1px solid rgba(178, 224, 241, .2);
+}
+.currency-roster > div {
+  display: grid;
+  grid-template-columns: 26px 24px 58px 1fr;
+  align-items: center;
+  gap: 9px;
+  min-height: 45px;
+  border-bottom: 1px solid rgba(178, 224, 241, .1);
+  color: #d9e9f0;
+}
+.currency-roster > div:last-child { border-bottom: 0; }
+.currency-roster > div > span { color: #718c9e; font-size: .64rem; letter-spacing: .08em; }
+.currency-roster img { width: 19px; height: 19px; object-fit: contain; }
+.currency-roster b { font-size: .9rem; font-weight: 500; letter-spacing: .05em; }
+.currency-roster small { color: #92a9b8; font-size: .76rem; text-align: right; }
 @keyframes currency-field-breathe { to { opacity: .62; transform: translate3d(2vw, -1vh, 0) scale(1.07); } }
 @keyframes galaxy-breathe {
   to { transform: scale(1.075) translate3d(-.8%, .6%, 0); }
@@ -379,6 +402,13 @@ body.app-open .scene-inner::after { animation-play-state: paused; }
 .trade-ticket.is-reference > p { margin-bottom: 24px; }
 .copy-final-left { left: var(--pad); top: 51%; width: min(285px, 22vw); }
 .copy-final-right { right: var(--pad); top: 51%; width: min(285px, 22vw); text-align: right; }
+@media (max-width: 760px) {
+  .currency-roster { top: 34vh; right: 20px; width: min(38vw, 230px); }
+  .currency-roster > div { grid-template-columns: 18px 20px 42px 1fr; min-height: 39px; gap: 6px; }
+  .currency-roster img { width: 16px; height: 16px; }
+  .currency-roster b { font-size: .76rem; }
+  .currency-roster small { font-size: .62rem; }
+}
 
 .hero-action {
   position: absolute;
