@@ -58,7 +58,7 @@ function fillLivingLattice(points, light, count, random) {
   // A compact market seed held by three orbital bands and a sparse cage.
   // Distinct scales make it read as an armillary object instead of a cloud.
   const coreEnd = Math.floor(count * .5);
-  const orbitEnd = Math.floor(count * .84);
+  const orbitEnd = Math.floor(count * .8);
   for (let index = 0; index < count; index += 1) {
     const cursor = index * 3;
     if (index < coreEnd) {
@@ -117,7 +117,7 @@ function fillLivingLattice(points, light, count, random) {
       points[cursor] = .365 * ring * Math.cos(angle);
       points[cursor + 1] = .405 * t;
       points[cursor + 2] = .31 * ring * Math.sin(angle);
-      light[index] = Math.round(255 * clamp(.25 + .18 * Math.sin(angle) + (mode === 1 ? .035 : 0)));
+      light[index] = Math.round(255 * clamp(.42 + .26 * Math.sin(angle) + (mode === 1 ? .045 : 0)));
     }
   }
 }
@@ -732,27 +732,6 @@ export class DenomMatter {
     context.globalAlpha = 1;
   }
 
-  drawCurrencyCurrents(time, frame, alpha) {
-    if (alpha < .01) return;
-    const context = this.context;
-    const compact = this.width < 900;
-    const amount = compact ? 70 : 120;
-    const radiusX = compact ? .29 : .44;
-    const radiusY = compact ? .34 : .41;
-    context.globalCompositeOperation = 'screen';
-    for (let index = 0; index < amount; index += 1) {
-      const lane = index % 3;
-      const angle = TAU * fract(index * .61803398875 + time * (lane === 1 ? -.0000024 : .000003));
-      const depth = Math.sin(angle + lane * .9);
-      const x = frame.x + frame.unit * (Math.cos(angle) * radiusX + .012 * Math.sin(2 * angle + lane));
-      const y = frame.y + frame.unit * (Math.sin(angle) * radiusY + .012 * Math.cos(3 * angle - lane));
-      const size = 1.9 + (index % 17 === 0 ? 2.1 : .9 * (depth + 1));
-      context.globalAlpha = alpha * (index % 17 === 0 ? .28 : .10 + .055 * depth);
-      context.drawImage(this.sprites[((index + lane) % 5) * 2], x - size / 2, y - size / 2, size, size);
-    }
-    context.globalAlpha = 1;
-  }
-
   drawAura(frame, alpha, size = 0.42) {
     const context = this.context;
     const radius = Math.min(this.width, this.height) * size;
@@ -1021,10 +1000,6 @@ export class DenomMatter {
     this.drawAura({ x: mix(fromFrame.x, toFrame.x, transition), y: mix(fromFrame.y, toFrame.y, transition) }, 1 - flight * 0.65, scene === 0 ? 0.48 : 0.39);
     if (scene === 0) this.drawHeroStars(time, this.local);
     this.drawAtmosphere(time, scene, this.local, flight);
-    if (scene === 1 || scene === 2) {
-      this.drawCurrencyCurrents(time, scene === 1 ? toFrame : fromFrame,
-        scene === 1 ? smooth((transition - .64) / .3) : 1 - smooth((transition - .7) / .28));
-    }
     context.globalCompositeOperation = 'screen';
 
     if (scene === 0) {
