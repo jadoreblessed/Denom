@@ -209,7 +209,45 @@ body[data-scene="0"] .ambient::before { opacity: .46; }
   overflow: hidden;
   padding: var(--pad);
   opacity: 0;
+  isolation: isolate;
   contain: layout paint;
+}
+.scene-inner::after {
+  content: "";
+  position: absolute;
+  inset: -9%;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .72;
+  transform: translate3d(0, 0, 0) scale(1.02);
+  animation: scene-atmosphere 28s ease-in-out infinite alternate;
+}
+.hero-scene .scene-inner::after {
+  background:
+    radial-gradient(ellipse 37% 29% at 14% 23%, rgba(113, 202, 238, .11), transparent 72%),
+    radial-gradient(ellipse 31% 36% at 91% 72%, rgba(55, 112, 210, .13), transparent 74%),
+    linear-gradient(116deg, rgba(3, 13, 23, .11) 12%, transparent 42%, rgba(8, 30, 47, .13) 78%, transparent);
+}
+.universe-scene .scene-inner::after {
+  background:
+    radial-gradient(circle at 68% 49%, rgba(128, 226, 255, .115) 0 4%, rgba(52, 151, 206, .075) 19%, transparent 45%),
+    radial-gradient(ellipse 50% 72% at 72% 52%, transparent 43%, rgba(76, 133, 255, .08) 44%, transparent 45.5%),
+    linear-gradient(104deg, rgba(5, 14, 24, .28), transparent 45%, rgba(30, 74, 118, .08));
+  animation-direction: alternate-reverse;
+}
+.curve-scene .scene-inner::after {
+  background:
+    radial-gradient(ellipse 57% 72% at 27% 53%, rgba(75, 207, 236, .095), transparent 57%),
+    radial-gradient(ellipse 37% 23% at 16% 20%, rgba(69, 128, 235, .08), transparent 73%),
+    linear-gradient(92deg, rgba(31, 83, 112, .08), transparent 57%, rgba(3, 13, 22, .24));
+}
+.portal-scene .scene-inner::after {
+  background:
+    radial-gradient(circle at 50% 57%, rgba(143, 220, 245, .08) 0 7%, rgba(38, 110, 151, .065) 25%, transparent 47%),
+    radial-gradient(ellipse 46% 28% at 50% 103%, rgba(44, 124, 214, .12), transparent 73%),
+    radial-gradient(ellipse 32% 42% at 5% 54%, rgba(43, 157, 191, .07), transparent 76%),
+    radial-gradient(ellipse 32% 42% at 96% 31%, rgba(71, 106, 202, .07), transparent 76%);
+  animation-duration: 34s;
 }
 .scene-title {
   position: absolute;
@@ -322,6 +360,9 @@ body[data-scene="0"] .ambient::before { opacity: .46; }
 }
 @keyframes ambient-tide {
   to { transform: translate3d(1.6%, -1.2%, 0) rotate(2deg) scale(1.035); opacity: .78; }
+}
+@keyframes scene-atmosphere {
+  to { transform: translate3d(1.1%, -.8%, 0) scale(1.055); opacity: .9; }
 }
 .copy-final-left { left: var(--pad); top: 51%; width: min(285px, 22vw); }
 .copy-final-right { right: var(--pad); top: 51%; width: min(285px, 22vw); text-align: right; }
