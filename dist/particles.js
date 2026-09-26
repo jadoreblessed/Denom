@@ -422,7 +422,7 @@ export class DenomMatter {
         const driftY = ((index * 0.56984029099) % 1 - .5) * 1.7;
         positions[index * 3] = (point[0] - mask.centerX) * scale + driftX;
         positions[index * 3 + 1] = (point[1] - mask.centerY) * scale + driftY;
-        positions[index * 3 + 2] = [-50, -30, -8, 8, 30][layer];
+        positions[index * 3 + 2] = [-84, -47, -8, 15, 56][layer];
         depths[index] = rear ? 1 : 0;
         const shimmer = (index * .75487766625) % 1;
         const light = shimmer * .55 - (point[0] - mask.centerX) / mask.halfWidth * .18
@@ -552,8 +552,8 @@ export class DenomMatter {
   }
 
   frameFor(scene) {
-    const desktop = [[0.5, 0.45, 0.88], [0.67, 0.48, 0.77], [0.32, 0.54, 0.82], [0.5, 0.55, 0.69]];
-    const mobile = [[0.5, 0.46, 0.92], [0.52, 0.55, 0.84], [0.34, 0.57, 0.93], [0.5, 0.58, 0.78]];
+    const desktop = [[0.5, 0.45, 0.88], [0.72, 0.49, 0.84], [0.32, 0.54, 0.84], [0.5, 0.55, 0.78]];
+    const mobile = [[0.5, 0.46, 0.92], [0.52, 0.55, 0.9], [0.34, 0.57, 0.93], [0.5, 0.58, 0.83]];
     const frame = (scene === 2 && this.width < 900 ? mobile : this.mobile ? mobile : desktop)[scene];
     const unit = Math.min(this.width * frame[2], this.height * (scene === 0 ? 1.58 : scene === 2 ? .82 : scene === 3 ? .72 : 1.18));
     return { x: this.width * frame[0], y: this.height * frame[1], unit };
@@ -564,8 +564,9 @@ export class DenomMatter {
     let x = 0;
     let z = 0;
     if (scene === 0) {
-      y = .11 + Math.sin(time * .00015) * .025;
-      x = -.06 + Math.sin(time * .00012) * .018;
+      // Keep the coarse layer aligned with the cached dense glyph face.
+      y = .14;
+      x = -.07;
     } else if (scene === 1) {
       y = Math.sin(time * .000073) * .38;
       x = -.12 + Math.sin(time * .000052) * .09;
@@ -998,17 +999,8 @@ export class DenomMatter {
     const phaseCos = Math.cos(phase);
     const phaseSin = Math.sin(phase);
 
-    if (scene > 0 || next > 0) {
-      const shadowFrame = {
-        x: mix(fromFrame.x, toFrame.x, transition),
-        y: mix(fromFrame.y, toFrame.y, transition),
-        unit: mix(fromFrame.unit, toFrame.unit, transition)
-      };
-      const widths = [.35, .46, .54, .5];
-      const heights = [.31, .4, .48, .52];
-      this.drawObjectShadow(shadowFrame, .72 * (1 - flight * .38),
-        mix(widths[scene], widths[next], transition), mix(heights[scene], heights[next], transition));
-    }
+    // Each scene supplies its own atmospheric light. A shadow fitted to the
+    // object looked like a circular disc behind the sculpture.
 
     const heroAssembled = scene === 0
       ? (this.reduced ? 1 : softer(clamp((time - this.birth - 4600) / 2800)))
@@ -1016,10 +1008,10 @@ export class DenomMatter {
     if (scene === 0) {
       const fade = 1 - smooth((this.local - 0.42) / 0.46);
       const breath = Math.sin((time - this.birth) * .00029);
-      this.drawAura({ x: this.width * 0.13, y: this.height * 0.22 }, fade * (0.95 + breath * 0.22), 0.38);
-      this.drawAura({ x: this.width * 0.91, y: this.height * 0.67 }, fade * (0.72 - breath * 0.17), 0.34);
+      this.drawAura({ x: this.width * 0.13, y: this.height * 0.22 }, fade * (0.32 + breath * 0.06), 0.38);
+      this.drawAura({ x: this.width * 0.91, y: this.height * 0.67 }, fade * (0.24 - breath * 0.04), 0.34);
     }
-    this.drawAura({ x: mix(fromFrame.x, toFrame.x, transition), y: mix(fromFrame.y, toFrame.y, transition) }, 1 - flight * 0.65, scene === 0 ? 0.48 : 0.39);
+    if (scene === 0) this.drawAura({ x: mix(fromFrame.x, toFrame.x, transition), y: mix(fromFrame.y, toFrame.y, transition) }, .28 * (1 - flight * .65), .48);
     if (scene === 0) this.drawHeroStars(time, this.local);
     this.drawAtmosphere(time, scene, this.local, flight);
     context.globalCompositeOperation = 'screen';
@@ -1104,7 +1096,7 @@ export class DenomMatter {
       const twinkle = flight > .05 && index % 17 === 0 ? .8 + .2 * Math.sin(time * .0028 + angle * 4) : scene === 0 && rawTransition === 0 && index % 13 === 0 ? .9 + .1 * Math.sin(time * .00075 + angle * 4) : 1;
       const brightFleck = index % 31 === 0;
       const heroAlpha = (0.5 + seed * 0.08 + depthLight * 0.07) * (scene === 0 && rawTransition === 0 ? particleIntro : 1) * twinkle;
-      const grainAlpha = (0.13 + seed * 0.05 + depthLight * 0.09 + (brightFleck ? 0.2 : 0)) * mix(.55, 1.28, materialLight);
+      const grainAlpha = (0.2 + seed * 0.07 + depthLight * 0.12 + (brightFleck ? 0.14 : 0)) * mix(.66, 1.12, materialLight);
       // Once the denser volumetric dust has formed, retire the coarse intro
       // points. Keeping both fully visible caused doubled edges and two
       // conflicting hover reactions.
@@ -1127,7 +1119,7 @@ export class DenomMatter {
     for (let tint = 0; tint < tones.length; tint += 1) {
       context.fillStyle = tones[tint];
       for (let shade = 0; shade < 2; shade += 1) {
-        context.globalAlpha = scene === 0 ? shade ? .58 : .47 : shade ? .29 : .17;
+        context.globalAlpha = scene === 0 ? shade ? .58 : .47 : shade ? .42 : .27;
         context.fill(mainPaths[tint * 2 + shade]);
       }
     }
@@ -1185,7 +1177,7 @@ export class DenomMatter {
       }
       const opacity = detailOpacity;
       const palette = ['#173651', '#2b6086', '#4d93ba', '#8fd2e8', '#e8faff'];
-      const alphas = [.45, .64, .8, .9, .96];
+      const alphas = [.58, .71, .83, .9, .93];
       for (let tint = 0; tint < palette.length; tint += 1) {
         context.globalAlpha = alphas[tint] * opacity;
         context.fillStyle = palette[tint];

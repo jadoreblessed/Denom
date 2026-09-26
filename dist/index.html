@@ -91,14 +91,14 @@
 
       <section class="app-view explore-view" data-view="explore" hidden>
         <header class="product-heading">
-          <div><span>MARKET</span><h2>Explore the market</h2><p>Find your next coin. Start with a unit.</p></div>
+          <div><span>MARKET</span><h2>Explore the market</h2><p>DENOM markets and saved reference snapshots. Start with a unit.</p></div>
           <label class="product-search"><span>⌕</span><input id="market-search" type="search" placeholder="Search coins, tickers or units" autocomplete="off"></label>
         </header>
         <div class="segmented market-sort" aria-label="Sort markets">
           <button type="button" class="active" data-sort="cap">Top market cap</button><button type="button" data-sort="new">Newest</button><button type="button" data-sort="volume">Most traded</button>
         </div>
         <div class="unit-filter" aria-label="Filter units">
-          <button type="button" class="active" data-unit="all">All units <b>310</b></button><button type="button" data-unit="INR"><img src="assets/icons/flag-in.svg" alt="">INR <b>45</b></button><button type="button" data-unit="JPY"><img src="assets/icons/flag-jp.svg" alt="">JPY <b>38</b></button><button type="button" data-unit="CNY"><img src="assets/icons/flag-cn.svg" alt="">CNY <b>31</b></button><button type="button" data-unit="KRW"><img src="assets/icons/flag-kr.svg" alt="">KRW <b>20</b></button><button type="button" data-unit="EUR"><img src="assets/icons/flag-eu.svg" alt="">EUR <b>45</b></button><button type="button" data-unit="GBP"><img src="assets/icons/flag-gb.svg" alt="">GBP <b>10</b></button>
+          <button type="button" class="active" data-unit="all">All units <b>0</b></button><button type="button" data-unit="INR"><img src="assets/icons/flag-in.svg" alt="">INR <b>0</b></button><button type="button" data-unit="JPY"><img src="assets/icons/flag-jp.svg" alt="">JPY <b>0</b></button><button type="button" data-unit="CNY"><img src="assets/icons/flag-cn.svg" alt="">CNY <b>0</b></button><button type="button" data-unit="KRW"><img src="assets/icons/flag-kr.svg" alt="">KRW <b>0</b></button><button type="button" data-unit="EUR"><img src="assets/icons/flag-eu.svg" alt="">EUR <b>0</b></button><button type="button" data-unit="GBP"><img src="assets/icons/flag-gb.svg" alt="">GBP <b>0</b></button><button type="button" data-unit="THB">THB <b>0</b></button><button type="button" data-unit="AUD">AUD <b>0</b></button><button type="button" data-unit="CAD">CAD <b>0</b></button>
         </div>
         <div class="data-table market-table">
           <div class="table-head"><span># / Coin</span><span>Unit</span><span>Price</span><span>Market cap</span><span>Graduation</span></div>
@@ -116,18 +116,18 @@
         </header>
         <div class="fee-strip"><span>Every trade costs <b>4.00%</b></span><i></i><em>1.00% platform</em><em>3.00% creator</em><em>No holder fee</em></div>
         <div class="trade-layout">
-          <section class="trade-chart"><header><b>Price in <span id="chart-unit">EUR</span> <small>VERIFIED MARKET HISTORY</small></b><div class="segmented chart-ranges"><button type="button" data-chart-minutes="5" class="active">5m</button><button type="button" data-chart-minutes="15">15m</button><button type="button" data-chart-minutes="60">1h</button><button type="button" data-chart-minutes="1440">1d</button></div></header><div class="chart-viewport"><canvas id="detail-chart" aria-label="Interactive verified market candlestick chart"></canvas><p id="chart-empty" hidden>No verified trades for this market yet.</p><span class="chart-hint">DRAG TO MOVE · SCROLL TO ZOOM</span></div></section>
-          <aside class="trade-ticket"><p>Live bonding curve. Trades settle on Robinhood Chain.</p><div class="segmented trade-mode"><button class="active" type="button" data-trade-mode="buy">Buy</button><button type="button" data-trade-mode="sell">Sell</button></div><span>Settle with</span><div class="segmented pay-assets"><button class="active" type="button"><img src="assets/icons/usdg.svg" alt="">USDG</button><button type="button" disabled><img src="assets/icons/eth.svg" alt="">ETH</button><button type="button" id="detail-pay-unit" disabled>EUR</button></div><label><span id="trade-amount-label">Spend USDG</span><input id="trade-amount" type="number" min="0" step="any" placeholder="0.00"></label><button class="primary-action" id="trade-action" type="button"><b>Connect wallet to trade</b></button></aside>
+          <section class="trade-chart"><header><b>Price in <span id="chart-unit">EUR</span> <small id="chart-provenance">SAVED MARKET HISTORY</small></b><div class="segmented chart-ranges"><button type="button" data-chart-minutes="5" class="active">5m</button><button type="button" data-chart-minutes="15">15m</button><button type="button" data-chart-minutes="60">1h</button><button type="button" data-chart-minutes="1440">1d</button></div></header><div class="chart-viewport"><canvas id="detail-chart" aria-label="Interactive market candlestick chart"></canvas><p id="chart-empty" hidden>No trades for this market yet.</p><span class="chart-hint">DRAG TO MOVE · SCROLL TO ZOOM</span></div></section>
+          <aside class="trade-ticket"><p id="ticket-status">Reference market · trading available through its originating exchange.</p><div class="segmented trade-mode"><button class="active" type="button" data-trade-mode="buy">Buy</button><button type="button" data-trade-mode="sell">Sell</button></div><span>Settle with</span><div class="segmented pay-assets"><button class="active" type="button"><img src="assets/icons/usdg.svg" alt="">USDG</button><button type="button" disabled><img src="assets/icons/eth.svg" alt="">ETH</button><button type="button" id="detail-pay-unit" disabled>EUR</button></div><label><span id="trade-amount-label">Spend USDG</span><input id="trade-amount" type="number" min="0" step="any" placeholder="0.00"></label><button class="primary-action" id="trade-action" type="button"><b>Reference market · view only</b></button></aside>
         </div>
         <section class="graduation-card"><header><b id="graduation-label">Bonding curve</b><strong id="graduation-percent">72%</strong></header><i><span id="graduation-bar"></span></i><p id="graduation-copy">At graduation, liquidity moves to a permanent pool and remains available for open trading.</p></section>
         <div class="market-ledger">
           <section class="ledger-card recent-trades">
-            <header><h3>Recent trades</h3><span>LIVE</span></header>
+            <header><h3>Recent trades</h3><span id="trades-provenance">REFERENCE</span></header>
             <div class="ledger-head"><span>Side</span><span id="trade-unit-head">INR</span><span id="trade-token-head">AI</span><span>Trader</span><span>When</span></div>
             <div id="recent-trades-body"></div>
           </section>
           <section class="ledger-card holders-card">
-            <header><h3>Holders from curve trades</h3><span>TOP 8</span></header>
+            <header><h3>Holders from curve trades</h3><span id="holders-provenance">REFERENCE</span></header>
             <div id="holders-body"></div>
           </section>
         </div>
@@ -139,7 +139,7 @@
           <section class="ledger-card locked-card">
             <h3>Locked &amp; burned</h3>
             <p id="locked-copy">Nothing is locked or burned against this coin. If the developer locks or burns any, it appears here from the chain.</p>
-            <small>Locking, burning and vesting are verified onchain.</small>
+            <small>Only onchain contract events are shown as verified.</small>
           </section>
         </div>
       </section>

@@ -236,12 +236,9 @@ const marketSeeds = [
   { name:'Kangaroo', ticker:'KANGA', unit:'AUD', price:.000006026, cap:4291, curve:2.4, address:'0x7405b9bfe240562f84a54b6190305d32baa2f1bf', logo:'https://beige-realistic-egret-294.mypinata.cloud/ipfs/bafkreig6s2wbnqylbqgbvbbfy2y3ypazataktz7wvazb3336lmb5cbxfoi' }
 ];
 unitMeta.CAD = { icon:'https://flagcdn.com/w40/ca.png', symbol:'C$' };
-let marketData = Array.from({ length: 310 }, (_, index) => {
-  const source = marketSeeds[index % marketSeeds.length];
-  const round = Math.floor(index / marketSeeds.length);
-  const scale = round === 0 ? 1 : Math.max(.12, .42 - round * .018);
-  return { ...source, id:index, name:round ? `${source.name} ${round + 1}` : source.name, ticker:round ? `${source.ticker}${round + 1}`.slice(0,10) : source.ticker, cap:Math.round(source.cap * scale), curve:source.curve === 100 ? 100 : Math.max(.1, source.curve * scale), price:source.price * (.82 + scale * .18), volume:source.cap * (2 + index % 7), newest:310 - index };
-});
+// These addresses and logos belong to actual reference markets. Keep the
+// snapshot distinct from DENOM markets loaded from our own contracts.
+let marketData = marketSeeds.map((market, id) => ({ ...market, id, source:'reference', newest:marketSeeds.length - id, volume:0 }));
 let activeUnit = 'all';
 let activeSort = 'cap';
 let marketLimit = 14;
@@ -270,6 +267,18 @@ function filteredMarkets() {
 function renderMarkets() {
   const result = filteredMarkets();
   const visible = result.slice(0, marketLimit);
+  document.querySelectorAll('[data-unit]').forEach(button => {
+    const count = button.dataset.unit === 'all'
+      ? marketData.length : marketData.filter(market => market.unit === button.dataset.unit).length;
+    button.querySelector('b').textContent = String(count);
+    button.hidden = button.dataset.unit !== 'all' && count === 0;
+  });
+  const volumeSort = document.querySelector('[data-sort="volume"]');
+  volumeSort.hidden = !marketData.some(market => market.source === 'chain' && market.volume > 0);
+  if (volumeSort.hidden && activeSort === 'volume') {
+    activeSort = 'cap';
+    document.querySelectorAll('[data-sort]').forEach(button => button.classList.toggle('active', button.dataset.sort === activeSort));
+  }
   marketBody.innerHTML = visible.map((market, index) => {
     const meta = unitMeta[market.unit] || { icon: 'assets/icons/usdg.svg' };
     return `<button class="market-row" type="button" data-market-id="${market.id}" aria-label="Open ${market.name} market"><span class="coin-cell"><em>${String(index + 1).padStart(2,'0')}</em><i class="coin-mark"><img src="${market.logo}" alt="${market.name}" loading="lazy"></i><strong>${market.name}<small>${market.ticker}</small></strong></span><b class="unit-cell"><img src="${meta.icon}" alt=""><span>${market.unit}</span></b><span>${formatMarketPrice(market)}</span><span>$${market.cap.toLocaleString()}</span><span class="curve-state ${market.curve === 100 ? 'complete' : ''}"><label>${market.curve === 100 ? 'Graduated' : 'Bonding curve'} <b>${market.curve === 100 ? '100' : market.curve.toFixed(1)}%</b></label><i style="--p:${market.curve}%"></i></span></button>`;
@@ -279,26 +288,14 @@ function renderMarkets() {
 }
 
 function renderMarketLedger(market) {
-  const trades = Array.from({ length: 8 }, (_, index) => {
-    const buy = (index + market.id) % 3 !== 0;
-    const amount = (market.cap * (.011 + index * .0043)).toLocaleString(undefined, { maximumFractionDigits: 2 });
-    const tokens = Math.round((market.cap * (82 + index * 17)) / Math.max(market.price * 1000, .0001)).toLocaleString();
-    const trader = `0x${((market.id + 11) * (index + 7) * 7919).toString(16).padStart(4,'0').slice(-4)}…${((market.id + 3) * (index + 19) * 3571).toString(16).padStart(4,'0').slice(-4)}`;
-    return `<div class="trade-line"><b class="${buy ? 'buy' : 'sell'}">${buy ? 'Buy' : 'Sell'}</b><span>${unitMeta[market.unit].symbol}${amount}</span><span>${tokens}</span><code>${trader}</code><span>${index + 1}h ago</span></div>`;
-  });
-  const holders = Array.from({ length: 8 }, (_, index) => {
-    const share = Math.max(1.3, 13.7 - index * 1.42);
-    const address = `0x${((market.id + 5) * (index + 17) * 65537).toString(16).padStart(4,'0').slice(-4)}…${((market.id + 13) * (index + 3) * 4099).toString(16).padStart(4,'0').slice(-4)}`;
-    return `<div class="holder-line"><i>${index + 1}</i><span><strong>${address}</strong>${Math.round(market.cap * 7500 / (index + 1)).toLocaleString()} ${market.ticker}</span><b>${share.toFixed(1)}%</b></div>`;
-  });
-  document.querySelector('#recent-trades-body').innerHTML = trades.join('');
-  document.querySelector('#holders-body').innerHTML = holders.join('');
+  document.querySelector('#recent-trades-body').innerHTML = '<p class="ledger-empty">Trade history is unavailable for this reference market. The chart shows the saved market history.</p>';
+  document.querySelector('#holders-body').innerHTML = '<p class="ledger-empty">Holder balances are unavailable for this reference market.</p>';
   document.querySelector('#trade-unit-head').textContent = market.unit;
   document.querySelector('#trade-token-head').textContent = market.ticker;
   document.querySelector('#detail-contract').textContent = shortAddress(market.address);
-  document.querySelector('#detail-creator').textContent = `0x${(market.id * 9311 + 0xAF11).toString(16).padStart(4,'0')}…${(market.id * 1777 + 0x0A8D).toString(16).slice(-4).toUpperCase()}`;
-  document.querySelector('#detail-unit-label').textContent = `${market.unit} token`;
-  document.querySelector('#detail-unit-contract').textContent = `0x${(market.id * 4567 + 0xBC91).toString(16).padStart(4,'0')}…${(market.id * 3221 + 0x0987).toString(16).slice(-4).toUpperCase()}`;
+  document.querySelector('#detail-creator').textContent = 'Unavailable';
+  document.querySelector('#detail-unit-label').textContent = 'Settlement token';
+  document.querySelector('#detail-unit-contract').textContent = 'Unavailable';
 }
 
 function renderOnchainLedger(market, trades) {
@@ -442,7 +439,6 @@ class VerifiedMarketChart {
     const bodyWidth = Math.max(2, Math.min(12, candleStep * .58));
     ctx.clearRect(0, 0, this.width, this.height);
     ctx.save();
-    ctx.strokeStyle = 'rgba(128,205,234,.12)';
     ctx.fillStyle = '#6f8795';
     ctx.lineWidth = 1;
     ctx.font = '11px ui-monospace, SFMono-Regular, Consolas, monospace';
@@ -450,12 +446,7 @@ class VerifiedMarketChart {
     for (let index = 0; index < 5; index += 1) {
       const gy = pad.top + index / 4 * plotHeight * .78;
       const value = high - index / 4 * range;
-      ctx.beginPath(); ctx.moveTo(pad.left, gy + .5); ctx.lineTo(this.width - pad.right + 8, gy + .5); ctx.stroke();
       ctx.fillText(value.toLocaleString(undefined, { maximumFractionDigits:9 }), this.width - pad.right + 15, gy + 4);
-    }
-    for (let index = 0; index < 6; index += 1) {
-      const gx = pad.left + index / 5 * plotWidth;
-      ctx.beginPath(); ctx.moveTo(gx + .5, pad.top); ctx.lineTo(gx + .5, this.height - pad.bottom); ctx.stroke();
     }
     visible.forEach((item, index) => {
       const x = pad.left + (index + .5) * candleStep;
@@ -511,6 +502,17 @@ async function selectMarket(id) {
   document.querySelector('#detail-ticker').textContent = market.ticker;
   document.querySelector('#detail-address').textContent = shortAddress(market.address);
   document.querySelector('#detail-unit').textContent = `${market.unit} MARKET`;
+  const onchain = market.source === 'chain';
+  document.querySelector('#chart-provenance').textContent = onchain ? 'ONCHAIN TRADE HISTORY' : 'SAVED MARKET HISTORY';
+  document.querySelector('#trades-provenance').textContent = onchain ? 'ONCHAIN' : 'REFERENCE';
+  document.querySelector('#holders-provenance').textContent = onchain ? 'ONCHAIN' : 'REFERENCE';
+  document.querySelector('#ticket-status').textContent = onchain
+    ? 'Live bonding curve. Trades settle on Robinhood Chain Testnet.'
+    : 'Reference market. Trading is available through its originating exchange.';
+  document.querySelector('.trade-ticket').classList.toggle('is-reference', !onchain);
+  document.querySelector('#trade-action b').textContent = onchain
+    ? chain.account ? `${tradeMode === 'buy' ? 'Buy' : 'Sell'} ${market.ticker}` : 'Connect wallet to trade'
+    : 'Open on Pairex';
   document.querySelector('#detail-price').textContent = formatMarketPrice(market);
   document.querySelector('#detail-cap').textContent = `$${market.cap.toLocaleString()}`;
   document.querySelector('#detail-curve').textContent = market.curve === 100 ? 'Graduated' : `${market.curve}%`;
@@ -525,9 +527,11 @@ async function selectMarket(id) {
       ? 'The fixed curve supply has been sold. Existing holders can still sell back into its onchain reserve.'
       : `This market is ${market.curve.toFixed(2)}% through its fixed onchain supply.`
     : market.curve === 100
-      ? `The curve sold out. Everything it raised is now a permanent pool against ${market.unit}, with liquidity locked.`
-      : `This market is ${market.curve.toFixed(1)}% of the way to graduation. Liquidity moves to a permanent pool when the curve completes.`;
-  document.querySelector('#locked-copy').textContent = `Nothing is locked or burned against ${market.ticker}. If the developer locks or burns any, it appears here from the chain.`;
+      ? `The saved market snapshot reports graduation. Check the originating exchange for current pool and lock status.`
+      : `The saved snapshot reports ${market.curve.toFixed(1)}% curve progress. Check the originating exchange for its current state.`;
+  document.querySelector('#locked-copy').textContent = onchain
+    ? `No lock or burn data is available for ${market.ticker} in this protocol.`
+    : `Lock and burn status for ${market.ticker} is available on its originating exchange.`;
   if (market.source === 'chain') {
     const totalFee = 1 + market.creatorFee;
     document.querySelector('.fee-strip > span b').textContent = `${totalFee.toFixed(2)}%`;
@@ -535,6 +539,11 @@ async function selectMarket(id) {
     if (feeItems[0]) feeItems[0].textContent = '1.00% protocol';
     if (feeItems[1]) feeItems[1].textContent = `${market.creatorFee.toFixed(2)}% creator`;
     if (feeItems[2]) feeItems[2].textContent = 'No holder fee';
+  } else {
+    document.querySelector('.fee-strip > span b').textContent = '4.00%';
+    const feeItems = document.querySelectorAll('.fee-strip em');
+    if (feeItems[0]) feeItems[0].textContent = '1.00% platform';
+    if (feeItems[1]) feeItems[1].textContent = '3.00% creator';
   }
   if (market.source === 'chain') {
     document.querySelector('#recent-trades-body').innerHTML = '<p class="ledger-empty">Loading verified trades…</p>';
@@ -891,7 +900,11 @@ async function refreshProtocol() {
   faucet.hidden = false;
   try {
     const [liveMarkets, assets] = await Promise.all([chain.loadMarkets(), chain.loadQuoteAssets()]);
-    marketData = liveMarkets;
+    marketData = [
+      ...liveMarkets,
+      ...marketSeeds.map((market, id) => ({ ...market, id:liveMarkets.length + id,
+        source:'reference', newest:marketSeeds.length - id, volume:0 }))
+    ];
     renderQuoteAssets(assets);
     renderMarkets();
   } catch (error) {
@@ -979,16 +992,18 @@ document.querySelectorAll('[data-trade-mode]').forEach(button => button.addEvent
   tradeMode = button.dataset.tradeMode;
   document.querySelector('#trade-amount-label').textContent = tradeMode === 'buy' ? `Spend ${activeMarket?.unit || 'unit'}` : `Sell ${activeMarket?.ticker || 'tokens'}`;
   const label = document.querySelector('#trade-action b');
-  label.textContent = chain.account && activeMarket?.source === 'chain' ? `${tradeMode === 'buy' ? 'Buy' : 'Sell'} ${activeMarket.ticker}` : 'Connect wallet to trade';
+  label.textContent = activeMarket?.source !== 'chain' ? 'Open on Pairex'
+    : chain.account ? `${tradeMode === 'buy' ? 'Buy' : 'Sell'} ${activeMarket.ticker}` : 'Connect wallet to trade';
 }));
 
 document.querySelector('#trade-action')?.addEventListener('click', async event => {
   const button = event.currentTarget;
-  if (!chain.account && !await connectWallet()) return;
   if (activeMarket?.source !== 'chain') {
-    showToast('This reference market is read-only. Launch a DENOM market to trade.');
+    if (/^0x[a-f\d]{40}$/i.test(activeMarket?.address || ''))
+      window.open(`https://pairex.market/c/${activeMarket.address}`, '_blank', 'noopener,noreferrer');
     return;
   }
+  if (!chain.account && !await connectWallet()) return;
   const amount = Number(document.querySelector('#trade-amount').value || 0);
   if (!(amount > 0)) { showToast('Enter an amount first.'); return; }
   try {
