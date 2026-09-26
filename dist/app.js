@@ -23,17 +23,24 @@ let targetScrollY = scrollY;
 let visualScrollY = scrollY;
 let toastTimer;
 let loadingFinished = false;
+let loadingFinishing = false;
+const loadingStartedAt = performance.now();
 const chain = new DenomChain();
 let chainReady = false;
 let activeMarket = null;
 let tradeMode = 'buy';
 
 function finishLoading() {
-  if (loadingFinished) return;
-  loadingFinished = true;
-  document.body.classList.add('loaded');
-  queueScroll();
-  setTimeout(() => document.querySelector('.loader')?.remove(), reduced ? 0 : 620);
+  if (loadingFinished || loadingFinishing) return;
+  loadingFinishing = true;
+  const minimumShowTime = reduced ? 0 : 1760;
+  const remaining = Math.max(0, minimumShowTime - (performance.now() - loadingStartedAt));
+  setTimeout(() => {
+    loadingFinished = true;
+    document.body.classList.add('loaded');
+    queueScroll();
+    setTimeout(() => document.querySelector('.loader')?.remove(), reduced ? 0 : 820);
+  }, remaining);
 }
 
 function splitMotionWords(element) {
