@@ -144,7 +144,7 @@ function paintScroll() {
       const enter = smooth((enterBase - stagger) / Math.max(0.01, 1 - stagger));
       // The panel opacity owns the fade; words only supply spatial staging.
       word.style.opacity = (upcoming ? .74 + enter * .26 : 1).toFixed(3);
-      word.style.transform = reduced ? 'none' : `translate3d(${((1 - enter) * (wordIndex % 2 ? 34 : -34)).toFixed(2)}px, ${((1 - enter) * 18).toFixed(2)}%, 0) rotateZ(${((1 - enter) * (wordIndex % 2 ? 1.8 : -1.8)).toFixed(2)}deg)`;
+      word.style.transform = reduced ? 'none' : `translate3d(0, ${((1 - enter) * 12).toFixed(2)}px, 0)`;
     });
     motion.details.forEach((detail, detailIndex) => {
       const stagger = Math.min(0.24, detailIndex * 0.06);

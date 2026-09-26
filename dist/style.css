@@ -31,17 +31,6 @@ body {
   font: 400 16px/1.45 "Helvetica Neue", "Segoe UI", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 90;
-  pointer-events: none;
-  opacity: .008;
-  background: repeating-linear-gradient(180deg, transparent 0 2px, rgba(214, 246, 255, .22) 3px, transparent 4px);
-  mix-blend-mode: soft-light;
-  contain: strict;
-}
 body.app-open { overflow: hidden; }
 body.app-open main,
 body.app-open #matter,
@@ -73,6 +62,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   animation: galaxy-breathe 32s ease-in-out infinite alternate;
 }
 body[data-scene="0"] .ambient::before { opacity: .46; }
+body[data-scene="1"] .ambient::before { opacity: .14; filter: hue-rotate(19deg) saturate(.75); }
+body[data-scene="2"] .ambient::before { opacity: .23; filter: hue-rotate(-14deg) saturate(1.18); }
+body[data-scene="3"] .ambient::before { opacity: .18; filter: hue-rotate(32deg) saturate(.72); }
 .ambient::after {
   content: "";
   position: absolute;
@@ -269,22 +261,23 @@ body[data-scene="0"] .ambient::before { opacity: .46; }
 }
 .universe-scene .scene-inner::after {
   background:
-    radial-gradient(circle at 68% 49%, rgba(128, 226, 255, .115) 0 4%, rgba(52, 151, 206, .075) 19%, transparent 45%),
-    linear-gradient(104deg, rgba(5, 14, 24, .28), transparent 45%, rgba(30, 74, 118, .08));
+    radial-gradient(ellipse 46% 38% at 71% 47%, rgba(156, 213, 242, .12), transparent 76%),
+    radial-gradient(ellipse 43% 63% at 82% 51%, rgba(62, 87, 181, .13), transparent 78%),
+    linear-gradient(106deg, rgba(4, 11, 26, .4), transparent 55%, rgba(27, 33, 81, .12));
   animation-direction: alternate-reverse;
 }
 .curve-scene .scene-inner::after {
   background:
-    radial-gradient(ellipse 57% 72% at 27% 53%, rgba(75, 207, 236, .095), transparent 57%),
-    radial-gradient(ellipse 37% 23% at 16% 20%, rgba(69, 128, 235, .08), transparent 73%),
-    linear-gradient(92deg, rgba(31, 83, 112, .08), transparent 57%, rgba(3, 13, 22, .24));
+    radial-gradient(ellipse 66% 70% at 19% 54%, rgba(28, 175, 184, .12), transparent 72%),
+    radial-gradient(ellipse 34% 35% at 9% 17%, rgba(112, 223, 239, .08), transparent 78%),
+    linear-gradient(92deg, rgba(9, 67, 71, .13), transparent 58%, rgba(2, 12, 22, .33));
 }
 .portal-scene .scene-inner::after {
   background:
-    radial-gradient(circle at 50% 57%, rgba(143, 220, 245, .08) 0 7%, rgba(38, 110, 151, .065) 25%, transparent 47%),
-    radial-gradient(ellipse 46% 28% at 50% 103%, rgba(44, 124, 214, .12), transparent 73%),
-    radial-gradient(ellipse 32% 42% at 5% 54%, rgba(43, 157, 191, .07), transparent 76%),
-    radial-gradient(ellipse 32% 42% at 96% 31%, rgba(71, 106, 202, .07), transparent 76%);
+    radial-gradient(ellipse 44% 42% at 50% 59%, rgba(169, 205, 233, .085), transparent 75%),
+    radial-gradient(ellipse 60% 30% at 50% 108%, rgba(57, 81, 163, .16), transparent 78%),
+    radial-gradient(ellipse 26% 52% at 8% 54%, rgba(38, 126, 147, .075), transparent 76%),
+    radial-gradient(ellipse 30% 48% at 96% 31%, rgba(87, 101, 197, .09), transparent 79%);
   animation-duration: 34s;
 }
 .scene-title {

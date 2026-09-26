@@ -55,8 +55,8 @@ function fillKnot(points, light, count, random) {
 }
 
 function fillLivingLattice(points, light, count, random) {
-  // A compact market seed held by three orbital bands and a sparse cage.
-  // Distinct scales make it read as an armillary object instead of a cloud.
+  // A suspended market seed with orbital streams and loose debris. No cage,
+  // wireframe or evenly spaced mesh survives into the final scene.
   const coreEnd = Math.floor(count * .5);
   const orbitEnd = Math.floor(count * .8);
   for (let index = 0; index < count; index += 1) {
@@ -103,21 +103,14 @@ function fillLivingLattice(points, light, count, random) {
       points[cursor + 2] = z;
       light[index] = Math.round(255 * clamp(.36 - x * .26 - y * .32 + z * .82 + (lane === 1 ? .05 : 0)));
     } else {
-      const latticeIndex = index - orbitEnd;
-      const mode = latticeIndex % 2;
-      const strandCount = mode === 0 ? 10 : 7;
-      const strandIndex = Math.floor(latticeIndex / 2);
-      const strand = strandIndex % strandCount;
-      const step = Math.floor(strandIndex / strandCount);
-      const steps = Math.ceil((count - orbitEnd) / (2 * strandCount));
-      const u = (step + random() * .18) / Math.max(1, steps - 1);
-      const t = mode === 0 ? u * 2 - 1 : -.8 + strand / (strandCount - 1) * 1.6;
-      const angle = mode === 0 ? strand * TAU / strandCount + t * .12 : TAU * u;
-      const ring = Math.sqrt(Math.max(0, 1 - t * t));
-      points[cursor] = .365 * ring * Math.cos(angle);
-      points[cursor + 1] = .405 * t;
-      points[cursor + 2] = .31 * ring * Math.sin(angle);
-      light[index] = Math.round(255 * clamp(.42 + .26 * Math.sin(angle) + (mode === 1 ? .045 : 0)));
+      const angle = TAU * fract(index * .61803398875 + random() * .12);
+      const elevation = (random() - .5) * 1.65;
+      const radius = .28 + Math.pow(random(), 1.8) * .14;
+      const ring = Math.sqrt(Math.max(.08, 1 - elevation * elevation));
+      points[cursor] = radius * ring * Math.cos(angle);
+      points[cursor + 1] = radius * elevation + Math.sin(angle * 3) * .024;
+      points[cursor + 2] = radius * ring * Math.sin(angle);
+      light[index] = Math.round(255 * clamp(.27 + .19 * Math.sin(angle) - elevation * .11 + random() * .13));
     }
   }
 }
@@ -587,7 +580,7 @@ export class DenomMatter {
     return { cy: Math.cos(y), sy: Math.sin(y), cx: Math.cos(x), sx: Math.sin(x), cz: Math.cos(z), sz: Math.sin(z),
       currency: scene === 2, tide: time * .00039,
       living: scene === 3, pulse: Math.sin(time * .00026), sway: Math.sin(time * .00019),
-      cageCos: Math.cos(time * .000048), cageSin: Math.sin(time * .000048) };
+      orbitCos: Math.cos(time * .000048), orbitSin: Math.sin(time * .000048) };
   }
 
   project(shape, cursor, frame, rotation, result) {
@@ -606,8 +599,8 @@ export class DenomMatter {
         z = z * breathe + .014 * rotation.sway * x;
         y += .009 * rotation.pulse * y * (1 - 4 * y * y);
       } else {
-        const turnX = x * rotation.cageCos - z * rotation.cageSin;
-        z = x * rotation.cageSin + z * rotation.cageCos;
+        const turnX = x * rotation.orbitCos - z * rotation.orbitSin;
+        z = x * rotation.orbitSin + z * rotation.orbitCos;
         x = turnX;
       }
     }
@@ -709,24 +702,31 @@ export class DenomMatter {
   }
 
   drawHeroStars(time, local) {
-    // Keep the photographic nebula still; only these few distant points move.
+    // Three sparse depth planes exist behind the glyphs. During the first
+    // hand-off their parallax accelerates towards the viewer's edges.
     const context = this.context;
-    const fade = 1 - smooth((local - 0.42) / 0.46);
+    const fade = 1 - smooth((local - 0.58) / 0.37);
     if (fade <= 0) return;
     const elapsed = time - this.birth;
-    const amount = this.mobile ? 30 : 72;
+    const amount = this.mobile ? 74 : 158;
+    const passage = smooth((local - .08) / .58);
     context.globalCompositeOperation = 'screen';
     for (let index = 0; index < amount; index += 1) {
       const u = (index * 0.61803398875 + 0.19) % 1;
       const v = (index * 0.75487766625 + 0.31) % 1;
       const layer = index % 3;
-      const x = (u * (this.width + 28) + elapsed * (0.0018 + layer * 0.0013)) % (this.width + 28) - 14;
-      const y = v * this.height + Math.sin(elapsed * 0.00022 + index * 3.2) * (1.5 + layer * 1.8);
+      const depth = [.24, .61, 1][layer];
+      const zoom = 1 + passage * depth * 1.56;
+      const x = this.width * (.5 + (u - .5) * zoom)
+        + Math.sin(elapsed * .00017 + index * 1.2) * depth * 6;
+      const y = this.height * (.48 + (v - .48) * zoom)
+        + Math.cos(elapsed * .00013 + index * 2.4) * depth * 5;
+      if (x < -16 || x > this.width + 16 || y < -16 || y > this.height + 16) continue;
       const core = Math.abs(x / this.width - 0.5) < 0.34 && Math.abs(y / this.height - 0.43) < 0.22;
       const light = 0.72 + 0.28 * Math.sin(elapsed * (0.0011 + layer * 0.0003) + index * 2.4);
-      const near = index % 9 === 0;
-      const size = (near ? 5.1 : 2.4) + layer * 0.3;
-      context.globalAlpha = fade * light * (core ? 0.12 : near ? 0.46 : 0.27);
+      const near = index % 13 === 0;
+      const size = (near ? 5.1 : 1.8 + depth * 1.2) * (1 + passage * depth * .45);
+      context.globalAlpha = fade * light * (core ? .075 : near ? .31 : .12 + depth * .08);
       context.drawImage(this.sprites[(index % 5) * 2], x - size / 2, y - size / 2, size, size);
     }
     context.globalAlpha = 1;
@@ -870,6 +870,28 @@ export class DenomMatter {
     context.globalAlpha = 1;
   }
 
+  drawHeroPassage(context, transition) {
+    if (!this.heroDustReady) return;
+    const approach = smooth(clamp((transition - .015) / .49));
+    const alpha = 1 - smooth(clamp((transition - .29) / .27));
+    if (alpha < .005) return;
+    const frame = this.frameFor(0);
+    // The D is the aperture: push the camera towards its counter while the
+    // remaining letters move past the edges of the viewport.
+    const apertureX = frame.x - frame.unit * .285;
+    const apertureY = frame.y - frame.unit * .035;
+    const scale = 1 + approach * 2.2;
+    context.save();
+    context.globalAlpha = alpha;
+    context.translate(mix(0, this.width * .5 - apertureX, approach),
+      mix(0, this.height * .5 - apertureY, approach));
+    context.translate(apertureX, apertureY);
+    context.scale(scale, scale);
+    context.translate(-apertureX, -apertureY);
+    context.drawImage(this.heroDustCanvas, 0, 0, this.width, this.height);
+    context.restore();
+  }
+
   drawHeroPointer(context, radius, time, strength) {
     const px = this.pointer.x;
     const py = this.pointer.y;
@@ -1004,8 +1026,8 @@ export class DenomMatter {
 
     if (scene === 0) {
       const elapsed = time - this.birth;
-      const cohesion = 1 - smooth(rawTransition / .075);
-      if (heroAssembled > 0) this.paintHeroDust(context, time, cohesion * heroAssembled);
+      if (rawTransition > 0) this.drawHeroPassage(context, transition);
+      else if (heroAssembled > 0) this.paintHeroDust(context, time, heroAssembled);
       context.globalAlpha = 1;
     }
 
@@ -1047,6 +1069,16 @@ export class DenomMatter {
         const spunY = relativeY + relativeX * twist;
         x = focusX + spunX * squeeze + (cosine * phaseCos - sine * phaseSin) * flight * (7 + seed * 15);
         y = focusY + spunY * (squeeze + 0.08) + (sine * phaseCos + cosine * phaseSin) * flight * (4 + seed * 9);
+        // Near and far material pass the lens at different speeds; the
+        // transition retains the same particles rather than crossfading objects.
+        const apertureX = scene === 0 ? fromFrame.x - fromFrame.unit * .285 : focusX;
+        const apertureY = scene === 0 ? fromFrame.y - fromFrame.unit * .035 : focusY;
+        const apertureWeight = scene === 0 ? 1 - smooth((transition - .37) / .31) : .35;
+        const cameraX = mix(focusX, apertureX, apertureWeight);
+        const cameraY = mix(focusY, apertureY, apertureWeight);
+        const zoom = 1 + flight * (scene === 0 ? .73 : .28) * (.72 + depthLight * .55);
+        x = cameraX + (x - cameraX) * zoom;
+        y = cameraY + (y - cameraY) * zoom;
       }
 
       let particleIntro = 1;
@@ -1108,7 +1140,7 @@ export class DenomMatter {
       const detailTo = this.detailShapes[detailNext];
       const lightFrom = this.detailLight[detailScene];
       const lightTo = this.detailLight[detailNext];
-      const detailFade = scene === 0 ? smooth(rawTransition / .18) : 1;
+      const detailFade = scene === 0 ? smooth((rawTransition - .07) / .29) : 1;
       const detailOpacity = objectMix * detailFade * (1 - flight * .1);
       const size = this.mobile ? 1.52 : 1.76;
       const a = this.detailPointA;
@@ -1119,9 +1151,19 @@ export class DenomMatter {
         if (rawTransition > 0) this.project(detailTo, cursor, toFrame, toRotation, b);
         const target = rawTransition > 0 ? b : a;
         const drift = flight * (36 + (index % 9) * 6);
-        const x = mix(a[0], target[0], transition) + this.detailCos[index] * drift;
-        const y = mix(a[1], target[1], transition) + this.detailSin[index] * drift * .72;
+        let x = mix(a[0], target[0], transition) + this.detailCos[index] * drift;
+        let y = mix(a[1], target[1], transition) + this.detailSin[index] * drift * .72;
         const depth = mix(a[2], target[2], transition);
+        if (flight > .001) {
+          const focusX = mix(fromFrame.x, toFrame.x, transition);
+          const focusY = mix(fromFrame.y, toFrame.y, transition);
+          const apertureWeight = scene === 0 ? 1 - smooth((transition - .37) / .31) : .35;
+          const cameraX = mix(focusX, fromFrame.x - fromFrame.unit * .285, apertureWeight * (scene === 0 ? 1 : 0));
+          const cameraY = mix(focusY, fromFrame.y - fromFrame.unit * .035, apertureWeight * (scene === 0 ? 1 : 0));
+          const zoom = 1 + flight * (scene === 0 ? .73 : .28) * (.72 + clamp((depth + .3) / .6) * .55);
+          x = cameraX + (x - cameraX) * zoom;
+          y = cameraY + (y - cameraY) * zoom;
+        }
         const shade = clamp(mix(lightFrom[index], lightTo[index], transition) / 255 * .85 + clamp((depth + .24) / .48) * .15);
         const dot = size * (.48 + shade * .96) * (index % 43 === 0 ? 1.52 : 1);
         const tint = shade < .28 ? 0 : shade < .42 ? 1 : shade < .56 ? 2 : shade < .68 ? 3 : 4;
@@ -1155,7 +1197,7 @@ export class DenomMatter {
     context.globalAlpha = 1;
     if (this.lastScene !== scene) {
       this.canvas.dataset.scene = String(scene);
-      this.canvas.dataset.object = ['wordmark', 'index-core', 'currency-field', 'living-lattice'][scene];
+      this.canvas.dataset.object = ['wordmark', 'index-core', 'currency-field', 'market-seed'][scene];
       this.lastScene = scene;
     }
     const transitionState = rawTransition > 0 && rawTransition < 1 ? 'morphing' : 'formed';
