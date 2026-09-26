@@ -11,46 +11,45 @@ const softer = value => {
 };
 const fract = value => value - Math.floor(value);
 
-// Three different solids share one material model: a directed upper-left
-// light, a dimmer rear surface and a narrow ice highlight. The arrays store
-// geometry and light once; scrolling only projects them.
+// One sampled material moves between scenes. Geometry and light are prepared
+// once; the scroll renderer only projects the particles.
 function fillKnot(points, light, count, random) {
   for (let index = 0; index < count; index += 1) {
-    const t = TAU * fract(index * .61803398875 + random() * .003);
-    const cross = TAU * fract(index * .75487766625 + random() * .003);
-    const c2 = Math.cos(2 * t);
-    const s2 = Math.sin(2 * t);
-    const c3 = Math.cos(3 * t);
-    const s3 = Math.sin(3 * t);
-    let tx = -.33 * s3 * c2 - .22 * (2 + c3) * s2;
-    let ty = -.33 * s3 * s2 + .22 * (2 + c3) * c2;
-    let tz = .39 * c3;
-    const tangentLength = Math.hypot(tx, ty, tz);
-    tx /= tangentLength;
-    ty /= tangentLength;
-    tz /= tangentLength;
-    const projection = c2 * tx + s2 * ty;
-    let nx = c2 - projection * tx;
-    let ny = s2 - projection * ty;
-    let nz = -projection * tz;
-    const normalLength = Math.hypot(nx, ny, nz);
-    nx /= normalLength;
-    ny /= normalLength;
-    nz /= normalLength;
-    const bx = ty * nz - tz * ny;
-    const by = tz * nx - tx * nz;
-    const bz = tx * ny - ty * nx;
-    const sweep = Math.cos(cross);
-    const depth = Math.sin(cross);
-    const radius = .067 + (random() - .5) * .006;
-    const faceX = nx * sweep + bx * depth;
-    const faceY = ny * sweep + by * depth;
-    const faceZ = nz * sweep + bz * depth;
+    const u = TAU * fract(index * .61803398875 + random() * .002);
+    const v = TAU * fract(index * .75487766625 + random() * .002);
+    const lane = index % 13;
     const cursor = index * 3;
-    points[cursor] = .107 * (2 + c3) * c2 + faceX * radius;
-    points[cursor + 1] = (.107 * (2 + c3) * s2 + faceY * radius) * .91;
-    points[cursor + 2] = .13 * s3 + faceZ * radius;
-    light[index] = Math.round(255 * clamp(.37 + faceX * -.23 + faceY * -.26 + faceZ * .27 + points[cursor + 2] * .56));
+    if (lane < 10) {
+      // A continuous thick shell reads as one tactile object. The ridge bends
+      // through depth but leaves an unmistakable aperture at its centre.
+      const major = .245 + .011 * Math.sin(3 * u);
+      const tube = .067 + .008 * Math.cos(2 * u);
+      const radial = major + tube * Math.cos(v);
+      points[cursor] = radial * Math.cos(u);
+      points[cursor + 1] = radial * Math.sin(u) * .87;
+      points[cursor + 2] = tube * Math.sin(v) + .075 * Math.sin(u) - .025 * Math.cos(2 * u);
+      light[index] = Math.round(255 * clamp(.36 - Math.cos(u) * .12 - Math.sin(u) * .17 + Math.sin(v) * .25 + points[cursor + 2] * .5));
+    } else if (lane === 10) {
+      // Two thin partial orbits give the shell a second depth plane without
+      // turning it into a decorative wireframe or another concentric disc.
+      const arc = u * .72 - .42;
+      const radius = .347 + (random() - .5) * .007;
+      points[cursor] = radius * Math.cos(arc);
+      points[cursor + 1] = radius * Math.sin(arc) * .74;
+      points[cursor + 2] = .10 * Math.sin(arc * 1.4) - .08;
+      light[index] = Math.round(255 * clamp(.25 + .2 * Math.sin(arc) + random() * .09));
+    } else {
+      // A small free-floating seed sits forward of the aperture. It has a
+      // different depth and light than the ring, so the void remains legible.
+      const elevation = 1 - 2 * random();
+      const azimuth = TAU * random();
+      const radial = Math.sqrt(Math.max(0, 1 - elevation * elevation));
+      const radius = .078 + random() * .009;
+      points[cursor] = .014 + radius * radial * Math.cos(azimuth);
+      points[cursor + 1] = .006 + radius * elevation;
+      points[cursor + 2] = .17 + radius * radial * Math.sin(azimuth);
+      light[index] = Math.round(255 * clamp(.43 - elevation * .15 + Math.sin(azimuth) * .22 + random() * .09));
+    }
   }
 }
 
@@ -130,10 +129,10 @@ export class DenomMatter {
     this.suspended = false;
     this.seedValue = 0xdecafbad;
     const cores = window.navigator?.hardwareConcurrency || 4;
-    const baseCount = innerWidth < 680 ? (cores < 6 ? 850 : 1100) : innerWidth < 1100 ? (cores < 6 ? 1450 : 1850) : (cores < 6 ? 1950 : 2350);
-    this.heroExtra = innerWidth < 680 ? 120 : innerWidth < 1100 ? 180 : 240;
+    const baseCount = innerWidth < 680 ? (cores < 6 ? 850 : 1000) : innerWidth < 1100 ? (cores < 6 ? 1350 : 1550) : (cores < 6 ? 1850 : 2200);
+    this.heroExtra = innerWidth < 680 ? 100 : innerWidth < 1100 ? 145 : 180;
     this.count = baseCount + this.heroExtra;
-    this.frameInterval = innerWidth < 680 ? 24 : 16;
+    this.frameInterval = innerWidth < 680 ? 32 : 24;
     this.slowFrames = 0;
     this.fastFrames = 0;
     this.seed = new Float32Array(this.count);
@@ -144,7 +143,7 @@ export class DenomMatter {
     this.radius = new Float32Array(this.count);
     this.tint = new Uint8Array(this.count);
     this.variant = new Uint8Array(this.count);
-    this.detailCount = innerWidth < 680 ? 2200 : innerWidth < 1100 ? 3200 : 4200;
+    this.detailCount = innerWidth < 680 ? 1900 : innerWidth < 1100 ? 3300 : 5600;
     this.detailPointA = new Float32Array(3);
     this.detailPointB = new Float32Array(3);
     this.detailCos = new Float32Array(this.detailCount);
@@ -406,7 +405,7 @@ export class DenomMatter {
       const mask = this.textPoints(glyph.value, glyph.size, glyph.weight);
       const scale = glyph.width * frame.unit / mask.halfWidth;
       const points = mask.points;
-      const count = Math.min(points.length, Math.round(glyph.dust * (this.mobile ? .19 : .42)));
+      const count = Math.min(points.length, Math.round(glyph.dust * (this.mobile ? .16 : .36)));
       const positions = new Float32Array(count * 3);
       const sizes = new Float32Array(count);
       const tones = new Uint8Array(count);
@@ -447,16 +446,16 @@ export class DenomMatter {
   fillCurrencies(output, light, count, random) {
     const positions = this.width < 900
       ? [
-          { symbol: '€', x: -.21, y: -.37, z: -.045, width: .12, tilt: -.1 },
-          { symbol: '$', x: -.21, y: -.12, z: .095, width: .12, tilt: .08 },
-          { symbol: '¥', x: -.21, y: .12, z: .085, width: .12, tilt: -.07 },
-          { symbol: '£', x: -.21, y: .37, z: -.065, width: .12, tilt: .1 }
+          { symbol: '€', x: -.20, y: -.37, z: -.045, width: .11, tilt: -.1 },
+          { symbol: '$', x: -.20, y: -.12, z: .095, width: .11, tilt: .08 },
+          { symbol: '¥', x: -.20, y: .12, z: .085, width: .11, tilt: -.07 },
+          { symbol: '£', x: -.20, y: .37, z: -.065, width: .11, tilt: .1 }
         ]
       : [
-          { symbol: '€', x: -.34, y: -.36, z: -.045, width: .083, tilt: -.12 },
-          { symbol: '$', x: -.34, y: -.12, z: .095, width: .086, tilt: .08 },
-          { symbol: '¥', x: -.34, y: .12, z: .085, width: .083, tilt: -.07 },
-          { symbol: '£', x: -.34, y: .36, z: -.065, width: .083, tilt: .1 }
+          { symbol: '€', x: -.35, y: -.21, z: -.045, width: .085, tilt: -.12 },
+          { symbol: '$', x: -.04, y: -.21, z: .095, width: .088, tilt: .08 },
+          { symbol: '¥', x: -.35, y: .19, z: .085, width: .085, tilt: -.07 },
+          { symbol: '£', x: -.04, y: .19, z: -.065, width: .085, tilt: .1 }
         ];
     const glyphs = positions.map(glyph => ({ ...glyph, mask: this.textPoints(glyph.symbol, 420, 700) }));
     for (let index = 0; index < count; index += 1) {
@@ -552,7 +551,7 @@ export class DenomMatter {
   }
 
   frameFor(scene) {
-    const desktop = [[0.5, 0.45, 0.88], [0.72, 0.49, 0.84], [0.32, 0.54, 0.84], [0.5, 0.55, 0.78]];
+    const desktop = [[0.5, 0.45, 0.88], [0.69, 0.49, 0.84], [0.32, 0.54, 0.84], [0.5, 0.55, 0.78]];
     const mobile = [[0.5, 0.46, 0.92], [0.52, 0.55, 0.9], [0.34, 0.57, 0.93], [0.5, 0.58, 0.83]];
     const frame = (scene === 2 && this.width < 900 ? mobile : this.mobile ? mobile : desktop)[scene];
     const unit = Math.min(this.width * frame[2], this.height * (scene === 0 ? 1.58 : scene === 2 ? .82 : scene === 3 ? .72 : 1.18));
@@ -669,7 +668,7 @@ export class DenomMatter {
       } else if (drawTime < 17) {
         this.fastFrames += 1;
         this.slowFrames = 0;
-        if (this.fastFrames >= 24) this.frameInterval = this.mobile ? 24 : 16;
+        if (this.fastFrames >= 24) this.frameInterval = this.mobile ? 32 : 24;
       } else {
         this.slowFrames = 0;
         this.fastFrames = 0;
@@ -973,7 +972,7 @@ export class DenomMatter {
       const remaining = this.targetProgress - this.motionProgress;
       // The scroll controller is already smoothed. A second long-running lag
       // desynchronised text and matter and made quick scrolls look broken.
-      const step = Math.min(Math.abs(remaining), Math.min(elapsed * .0017, Math.abs(remaining) * .34));
+      const step = Math.min(Math.abs(remaining), Math.min(elapsed * .0026, Math.abs(remaining) * .42));
       this.motionProgress += Math.sign(remaining) * step;
       if (Math.abs(this.targetProgress - this.motionProgress) < .0001) this.motionProgress = this.targetProgress;
       this.scene = Math.min(Math.floor(this.motionProgress), this.shapes.length - 1);
@@ -1007,7 +1006,7 @@ export class DenomMatter {
     // object looked like a circular disc behind the sculpture.
 
     const heroAssembled = scene === 0
-      ? (this.reduced ? 1 : softer(clamp((time - this.birth - 4600) / 2800)))
+      ? (this.reduced ? 1 : softer(clamp((time - this.birth - 2250) / 1900)))
       : 0;
     if (scene === 0) {
       const fade = 1 - smooth((this.local - 0.42) / 0.46);
@@ -1079,14 +1078,14 @@ export class DenomMatter {
 
       let particleIntro = 1;
       if (scene === 0 && rawTransition === 0) {
-        particleIntro = this.reduced ? 1 : softer(clamp(((time - this.birth) / 6500 - seed * .26) / .74));
+        particleIntro = this.reduced ? 1 : softer(clamp(((time - this.birth) / 4200 - seed * .24) / .76));
         const distance = 105 + seed * Math.max(this.width, this.height) * 0.44;
         const spiral = angle + (1 - particleIntro) * (2.1 + depth * .8);
         x = a[0] + (1 - particleIntro) * Math.cos(spiral) * distance;
         y = a[1] + (1 - particleIntro) * Math.sin(spiral) * distance * 0.62;
         // The original hero branch stayed here after assembly, so its idle
         // motion never ran. Let the lettering breathe once it has formed.
-        const idle = this.reduced ? 0 : smooth((time - this.birth - 4700) / 2200) * (index < this.heroMainEnd ? 1 : .42);
+        const idle = this.reduced ? 0 : smooth((time - this.birth - 2500) / 1800) * (index < this.heroMainEnd ? 1 : .42);
         x += Math.sin(time * .0004 + angle * 1.7 + seed * 6) * (.85 + depthLight * 1.7) * idle;
         y += Math.sin(time * .00032 + angle * 1.3 + seed * 4) * (.8 + depthLight * 1.4) * idle;
       } else if (rawTransition === 0) {
@@ -1160,7 +1159,7 @@ export class DenomMatter {
           x = cameraX + (x - cameraX) * zoom;
           y = cameraY + (y - cameraY) * zoom;
         }
-        const shade = clamp(mix(lightFrom[index], lightTo[index], transition) / 255 * .85 + clamp((depth + .24) / .48) * .15);
+        const shade = clamp(mix(lightFrom[index], lightTo[index], transition) / 255 * .94 + clamp((depth + .24) / .48) * .18 + .035);
         const dot = size * (.48 + shade * .96) * (index % 43 === 0 ? 1.52 : 1);
         const tint = shade < .28 ? 0 : shade < .42 ? 1 : shade < .56 ? 2 : shade < .68 ? 3 : 4;
         if (shade > .72 && index % 19 === 0) {
@@ -1180,8 +1179,8 @@ export class DenomMatter {
         }
       }
       const opacity = detailOpacity;
-      const palette = ['#173651', '#2b6086', '#4d93ba', '#8fd2e8', '#e8faff'];
-      const alphas = [.58, .71, .83, .9, .93];
+      const palette = ['#2a5370', '#52849f', '#7db3ce', '#a5d5e7', '#e2f4fb'];
+      const alphas = [.68, .75, .83, .87, .91];
       for (let tint = 0; tint < palette.length; tint += 1) {
         context.globalAlpha = alphas[tint] * opacity;
         context.fillStyle = palette[tint];
