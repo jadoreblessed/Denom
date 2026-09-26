@@ -103,6 +103,7 @@ function measure() {
 
 function paintScroll() {
   scheduled = false;
+  if (!metrics.length) return;
   targetScrollY = scrollY;
   const distanceToScroll = targetScrollY - visualScrollY;
   visualScrollY += reduced ? distanceToScroll : distanceToScroll * .14;
@@ -203,6 +204,35 @@ function closeApp(event) {
 document.querySelectorAll('[data-app-view]').forEach(button => {
   button.addEventListener('click', () => openApp(button.dataset.appView));
 });
+const headerSearch = document.querySelector('.header-search input');
+headerSearch?.addEventListener('keydown', event => {
+  if (event.key !== 'Enter') return;
+  event.preventDefault();
+  openApp('explore');
+  const marketInput = document.querySelector('#market-search');
+  marketInput.value = headerSearch.value;
+  marketInput.dispatchEvent(new Event('input', { bubbles: true }));
+  marketInput.focus();
+});
+document.addEventListener('keydown', event => {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+    event.preventDefault();
+    headerSearch?.focus();
+  }
+});
+const stackCards = [...document.querySelectorAll('.stack-card')];
+let featuredCard = 0;
+function rotateFeatured(direction) {
+  featuredCard = (featuredCard + direction + stackCards.length) % stackCards.length;
+  stackCards.forEach((card, index) => {
+    card.classList.remove('stack-back', 'stack-mid', 'stack-front');
+    card.classList.add(['stack-front', 'stack-mid', 'stack-back'][(index - featuredCard + stackCards.length) % stackCards.length]);
+  });
+  const label = document.querySelector('.stack-caption > span:first-child');
+  if (label) label.innerHTML = `0${featuredCard + 1} <small>/ 03</small>`;
+}
+document.querySelector('.stack-prev')?.addEventListener('click', () => rotateFeatured(-1));
+document.querySelector('.stack-next')?.addEventListener('click', () => rotateFeatured(1));
 document.querySelectorAll('[data-close-app]').forEach(button => button.addEventListener('click', closeApp));
 document.querySelector('#copy-ca')?.addEventListener('click', () => showToast('Contract address will appear at launch.'));
 document.querySelector('#social-action')?.addEventListener('click', () => showToast('DENOM on X — link reserved for launch.'));
@@ -1106,16 +1136,8 @@ chain.prepare().then(() => {
   console.warn('DENOM chain adapter unavailable.', error);
 });
 
-document.fonts.load('700 420px "Denom Display"').catch(() => {}).then(() => requestAnimationFrame(() => {
-  try {
-    matter = new DenomMatter(document.querySelector('#matter'), { reduced });
-    document.body.classList.add('canvas-ready');
-  } catch (error) {
-    console.warn('DENOM particle field unavailable.', error);
-  }
+requestAnimationFrame(() => {
   measure();
   paintScroll();
-  matter?.start();
-  setTimeout(finishLoading, reduced ? 80 : 420);
-}));
-setTimeout(finishLoading, 2350);
+  setTimeout(finishLoading, reduced ? 0 : 190);
+});

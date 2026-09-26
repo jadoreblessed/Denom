@@ -13,81 +13,58 @@
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
-  <div class="loader" aria-hidden="true">
-    <div class="loader-mark"><img src="assets/denom-loader-v2.webp?v=3" alt=""><span></span></div>
-    <div class="loader-track"><i></i></div>
-  </div>
-  <div class="ambient" aria-hidden="true"><i></i><i></i><i></i></div>
-  <canvas id="matter" aria-hidden="true"></canvas>
-  <div class="canvas-fallback" aria-hidden="true">DENOM</div>
-
+  <aside class="side-rail" aria-label="Primary navigation">
+    <a class="rail-brand" href="#home" aria-label="DENOM home"><img src="assets/icons/denom-logo.png" alt=""></a>
+    <button class="rail-item active" type="button" aria-label="Home" onclick="window.scrollTo({top:0,behavior:'smooth'})">⌂</button>
+    <button class="rail-item" type="button" data-app-view="explore" aria-label="Explore markets">◈</button>
+    <button class="rail-item" type="button" data-app-view="exchange" aria-label="Exchange">⇄</button>
+    <button class="rail-item" type="button" data-app-view="portfolio" aria-label="Portfolio">▤</button>
+    <button class="rail-item" type="button" data-app-view="launch" aria-label="Launch a coin">✧</button>
+    <button class="rail-item" type="button" data-app-view="earnings" aria-label="Earnings">◫</button>
+    <button class="rail-item" type="button" data-app-view="rates" aria-label="Rates">◎</button>
+    <a class="rail-bottom" href="#home" aria-label="Back to top">D</a>
+  </aside>
   <header class="topbar">
     <a href="#home" class="wordmark" data-close-app aria-label="DENOM home"><img src="assets/icons/denom-logo.png" alt=""><b>DENOM</b></a>
+    <label class="header-search"><span>⌕</span><input type="search" placeholder="Search coins or units" aria-label="Search coins or units"><kbd>⌘ K</kbd></label>
     <nav aria-label="Product navigation">
       <button type="button" data-app-view="explore">Explore</button>
-      <button type="button" data-app-view="launch">Launch</button>
       <button type="button" data-app-view="make-pair">Make a pair</button>
       <button type="button" data-app-view="exchange">Exchange</button>
       <button type="button" data-app-view="portfolio">Portfolio</button>
       <button type="button" data-app-view="earnings">Earnings</button>
       <button type="button" data-app-view="rates">Rates</button>
     </nav>
-    <button class="connect-wallet glass-wallet" type="button">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 6.5h12.8a2.2 2.2 0 0 1 2.2 2.2v8.1a2.2 2.2 0 0 1-2.2 2.2H5.7a2.2 2.2 0 0 1-2.2-2.2V5.6A2.6 2.6 0 0 1 6.1 3h9.4"/><path d="M15 11.2h4.5v3.7H15a1.85 1.85 0 1 1 0-3.7Z"/></svg>
-      <b>Connect wallet</b>
-    </button>
+    <div class="header-actions"><button class="header-launch" type="button" data-app-view="launch">Launch</button><button class="connect-wallet glass-wallet" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 6.5h12.8a2.2 2.2 0 0 1 2.2 2.2v8.1a2.2 2.2 0 0 1-2.2 2.2H5.7a2.2 2.2 0 0 1-2.2-2.2V5.6A2.6 2.6 0 0 1 6.1 3h9.4"/><path d="M15 11.2h4.5v3.7H15a1.85 1.85 0 1 1 0-3.7Z"/></svg><b>Connect wallet</b></button></div>
   </header>
-
-  <main id="main">
-    <section class="scene hero-scene" id="home" data-scene="0">
-      <div class="scene-inner hero-ui">
-        <h1 class="sr-only">DENOM</h1>
-        <button class="hero-action ca-action" id="copy-ca" type="button">
-          <span>CA COMING SOON</span>
-        </button>
-        <button class="hero-action social-action" id="social-action" type="button">
-          <span>FOLLOW DENOM</span>
-        </button>
-        <footer class="scene-footer"><p>Memecoins priced in currencies, commodities and culture.</p><b>ROBINHOOD CHAIN / 001</b></footer>
+  <main id="main" class="cashed-home">
+    <section class="cash-hero" id="home">
+      <span class="corner-star star-one">✦</span><span class="corner-star star-two">✦</span><span class="corner-star star-three">✦</span><span class="corner-star star-four">✦</span>
+      <div class="hero-content">
+        <div class="eyebrow"><img src="assets/icons/denom-logo.png" alt=""> DENOM <span> / ROBINHOOD CHAIN</span></div>
+        <h1>Price anything.<br><span>In anything.</span></h1>
+        <p class="hero-kicker">ONE MARKET. ANY UNIT. YOUR TERMS.</p>
+        <span class="small-rule"></span>
+        <p class="hero-description">Launch a coin priced in currencies, commodities or culture. A live curve opens from the first block. The market decides what happens next.</p>
+        <div class="hero-buttons"><button type="button" class="pill-white" data-app-view="launch">Launch a market <span>↗</span></button><button type="button" class="pill-dark" data-app-view="explore">Explore markets <span>↗</span></button></div>
+      </div>
+      <div class="hero-stack" aria-label="DENOM unit markets">
+        <div class="stack-card stack-back"><div class="stack-head"><img src="assets/icons/flag-jp.svg" alt=""> JPY / DENOM <span>03</span></div><div class="stack-orb orb-jpy">¥</div><div class="stack-bottom"><span>Japanese yen</span><b>A market in any unit</b></div></div>
+        <div class="stack-card stack-mid"><div class="stack-head"><img src="assets/icons/gold.svg" alt=""> GOLD / DENOM <span>02</span></div><div class="stack-orb orb-gold">Au</div><div class="stack-bottom"><span>Gold</span><b>Set the terms</b></div></div>
+        <div class="stack-card stack-front"><div class="stack-head"><img src="assets/icons/flag-us.svg" alt=""> USD / DENOM <span>01</span></div><div class="stack-orb orb-usd">$</div><div class="stack-bottom"><span>US dollar</span><b>Price discovery starts here</b></div></div>
+        <div class="stack-caption"><span>01 <small>/ 03</small></span><button type="button" class="stack-prev" aria-label="Previous market">←</button><button type="button" class="stack-next" aria-label="Next market">→</button><span class="caption-right">Explore denominations &nbsp; ↗</span></div>
       </div>
     </section>
-
-    <section class="scene universe-scene" data-scene="1">
-      <div class="scene-inner">
-        <h2 class="scene-title title-left">Familiar value.<br><em>New markets.</em></h2>
-        <p class="scene-copy copy-left">Choose what one coin is worth. The unit becomes part of the market forever.</p>
-        <div class="unit-index" aria-label="Example denominations">
-          <span><img src="assets/icons/flag-us.svg" alt="">USD</span><span><img src="assets/icons/flag-jp.svg" alt="">JPY</span><span><img src="assets/icons/gold.svg" alt="">GOLD</span><span><img src="assets/icons/oil.svg" alt="">OIL</span><span><img src="assets/icons/cards.svg" alt="">CARDS</span><span>+267</span>
-        </div>
-        <p class="scene-statement">Anything can become<br>a unit of value.</p>
-      </div>
+    <div class="market-ticker" aria-label="Available units"><span>UNIT MARKETS</span><span>USD <small>US DOLLAR</small></span><span>EUR <small>EURO</small></span><span>JPY <small>JAPANESE YEN</small></span><span>GOLD <small>PRECIOUS METAL</small></span><span>CARDS <small>CULTURE</small></span><button type="button" data-app-view="rates">ALL UNITS ↗</button></div>
+    <section class="feature-grid" aria-label="Discover DENOM">
+      <button class="feature-card explore-card" type="button" data-app-view="explore"><div class="tile-mosaic"><span><img src="assets/icons/flag-us.svg" alt=""></span><span><img src="assets/icons/flag-eu.svg" alt=""></span><span><img src="assets/icons/flag-jp.svg" alt=""></span><span><img src="assets/icons/gold.svg" alt=""></span><span><img src="assets/icons/oil.svg" alt=""></span><span><img src="assets/icons/cards.svg" alt=""></span></div><footer><b>Explore</b><small>Open ↗</small></footer></button>
+      <button class="feature-card curve-card" type="button" data-app-view="launch"><div class="curve-art"><span>01</span><strong>YOUR<br>MARKET</strong><i></i><small>FROM BLOCK ONE →</small></div><footer><b>Launch</b><small>Open ↗</small></footer></button>
+      <button class="feature-card rate-card" type="button" data-app-view="rates"><div class="rate-art"><span>AVAILABLE UNITS</span><strong>267<span>+</span></strong><svg viewBox="0 0 400 100" preserveAspectRatio="none" aria-hidden="true"><path d="M0 74L37 63L73 68L113 48L151 59L194 36L233 50L275 27L315 37L350 14L400 23"/></svg><small>WORLD CURRENCIES · COMMODITIES · CULTURE</small></div><footer><b>Rates</b><small>Open ↗</small></footer></button>
     </section>
-
-    <section class="scene curve-scene" data-scene="2">
-      <div class="scene-inner">
-        <h2 class="scene-title title-right">Open from<br><em>block one.</em></h2>
-        <span class="currency-legend currency-legend-top">WORLD UNITS <i>03 / 04</i></span>
-        <div class="currency-roster" aria-label="Currencies represented in the market">
-          <div><span>01</span><img src="assets/icons/flag-eu.svg" alt=""><b>EUR</b><small>Euro</small></div>
-          <div><span>02</span><img src="assets/icons/flag-us.svg" alt=""><b>USD</b><small>US dollar</small></div>
-          <div><span>03</span><img src="assets/icons/flag-jp.svg" alt=""><b>JPY</b><small>Japanese yen</small></div>
-          <div><span>04</span><img src="assets/icons/flag-gb.svg" alt=""><b>GBP</b><small>Pound sterling</small></div>
-        </div>
-        <p class="scene-copy copy-right">A fixed supply enters a live curve. Price discovery starts immediately.</p>
-      </div>
-    </section>
-
-    <section class="scene portal-scene" data-scene="3">
-      <div class="scene-inner">
-        <h2 class="scene-title title-center">Give value<br><em>its own market.</em></h2>
-        <p class="scene-copy copy-final-left">Create the unit. Set the terms. Let the market decide.</p>
-        <p class="scene-copy copy-final-right">Permanent liquidity after graduation.</p>
-        <button class="enter-app" type="button" data-app-view="launch">Launch a market</button>
-        <div class="final-signature"><span>DENOM</span><b>PRICE ANYTHING IN ANYTHING</b></div>
-      </div>
-    </section>
+    <section class="market-overview"><div class="section-heading"><div><small>DISCOVER / 001</small><h2>Markets, on your terms.</h2></div><button type="button" data-app-view="explore">View all ↗</button></div><div class="unit-cards"><button type="button" data-app-view="explore"><img src="assets/icons/flag-us.svg" alt=""><span>US dollar <small>USD</small></span><b>Explore ↗</b></button><button type="button" data-app-view="explore"><img src="assets/icons/flag-eu.svg" alt=""><span>Euro <small>EUR</small></span><b>Explore ↗</b></button><button type="button" data-app-view="explore"><img src="assets/icons/flag-jp.svg" alt=""><span>Japanese yen <small>JPY</small></span><b>Explore ↗</b></button><button type="button" data-app-view="explore"><img src="assets/icons/gold.svg" alt=""><span>Gold <small>GOLD</small></span><b>Explore ↗</b></button></div></section>
+    <section class="how-panel"><div class="section-heading"><div><small>THE DENOM MODEL / 002</small><h2>From an idea to a market.</h2></div><button type="button" data-app-view="launch">Launch ↗</button></div><div class="how-steps"><article><span>01 / CHOOSE</span><h3>Name the unit.</h3><p>Pick a currency, a commodity or something from culture.</p></article><article><span>02 / LAUNCH</span><h3>Open the curve.</h3><p>Set the terms and let price discovery begin immediately.</p></article><article><span>03 / GRADUATE</span><h3>Keep trading.</h3><p>After graduation, liquidity moves to a permanent pool.</p></article></div></section>
+    <footer class="cash-footer"><div><img src="assets/icons/denom-logo.png" alt=""><b>DENOM</b><span>Price anything in anything.</span></div><button type="button" data-app-view="explore">Explore ↗</button><button type="button" data-app-view="launch">Launch ↗</button><span>© 2026 DENOM</span></footer>
   </main>
-
   <section class="app-shell" id="denom-app" aria-label="DENOM application" hidden>
     <div class="app-frame">
       <header class="app-intro">
