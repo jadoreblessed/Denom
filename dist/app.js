@@ -17,10 +17,28 @@ let activeMarket = null;
 let tradeMode = 'buy';
 
 function finishLoading() {
-  const reveal = () => document.body.classList.add('loaded');
+  const reveal = () => {
+    document.body.classList.add('loaded');
+    requestAnimationFrame(setupSectionReveals);
+  };
   if (reduced) { reveal(); return; }
   // Keep the original mark on screen long enough to complete its scan.
   setTimeout(reveal, 1350);
+}
+
+function setupSectionReveals() {
+  if (reduced || !('IntersectionObserver' in window)) return;
+  const sections = document.querySelectorAll('.discovery-grid,.home-market-section,.home-process,.home-footer');
+  sections.forEach(section => section.classList.add('reveal-section'));
+  document.body.classList.add('motion-ready');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      entry.target.classList.add('is-visible');
+      observer.unobserve(entry.target);
+    });
+  }, { rootMargin:'0px 0px -7% 0px', threshold:.08 });
+  sections.forEach(section => observer.observe(section));
 }
 
 function showToast(message) {

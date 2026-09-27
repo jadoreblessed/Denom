@@ -30,7 +30,7 @@
   <header class="topbar">
     <a href="#home" class="wordmark" data-close-app aria-label="DENOM home"><b>DENOM</b><span>ROBINHOOD CHAIN</span></a>
     <button class="global-search" type="button" id="global-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg><span>Search markets or units</span><kbd>⌘ K</kbd></button>
-    <button type="button" class="header-launch" data-app-view="launch">Launch</button>
+    <button id="social-action" class="header-social" type="button" aria-label="DENOM on X" title="DENOM on X">𝕏</button>
     <button class="connect-wallet glass-wallet" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 6.5h12.8a2.2 2.2 0 0 1 2.2 2.2v8.1a2.2 2.2 0 0 1-2.2 2.2H5.7a2.2 2.2 0 0 1-2.2-2.2V5.6A2.6 2.6 0 0 1 6.1 3h9.4"/><path d="M15 11.2h4.5v3.7H15a1.85 1.85 0 1 1 0-3.7Z"/></svg><b>Connect wallet</b></button>
   </header>
   <main id="main" class="market-home">
@@ -38,7 +38,7 @@
       <div class="hero-grain" aria-hidden="true"></div>
       <div class="hero-content">
         <span class="hero-eyebrow"><img src="assets/icons/denom-logo.png" alt=""> DENOM <span> / </span> MARKETS IN ANY UNIT</span>
-        <h1 id="hero-title">A coin.<br><span>Any unit.</span></h1>
+        <h1 id="hero-title"><span class="title-first">A coin.</span><br><span class="title-second">Any unit.</span></h1>
         <p class="hero-lead">Create a market priced in currencies, commodities, or the things your community cares about.</p>
         <div class="hero-ctas"><button class="button-light" type="button" data-app-view="launch">Launch a coin</button><button class="button-outline" type="button" data-app-view="explore">Explore markets</button></div>
       </div>
@@ -47,10 +47,9 @@
         <div class="art-track art-track-one" aria-hidden="true"></div><div class="art-track art-track-two" aria-hidden="true"></div>
         <div id="hero-cards" class="hero-cards"></div>
         <div class="hero-card-controls" aria-label="Browse reference markets"><button id="hero-prev" type="button" aria-label="Previous markets">←</button><span id="hero-position" aria-live="polite">01 / 05</span><button id="hero-next" type="button" aria-label="Next markets">→</button></div>
-        <div class="hero-art-caption"><span>ONE IDEA</span><span class="caption-line"></span><span>ANY DENOMINATION</span></div>
       </div>
       <div class="hero-corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-      <div class="hero-utilities"><button id="copy-ca" type="button">CA coming soon</button><button id="social-action" type="button">Follow on 𝕏</button></div>
+      <div class="hero-utilities"><button id="copy-ca" type="button">CA coming soon</button></div>
     </section>
 
     <div class="market-strip" id="market-strip" aria-label="Selected market snapshots"></div>
@@ -65,7 +64,7 @@
 
     <section class="home-process" aria-labelledby="home-process-title"><div class="process-copy"><span>ONE COIN · INFINITE FRAMES OF REFERENCE</span><h2 id="home-process-title">The unit changes.<br><em>The market moves.</em></h2><p>Price a new coin in the world your community already knows. Watch a market take shape in real time.</p><button class="button-light" type="button" data-app-view="launch">Create a market</button></div><div class="atom-stage" aria-hidden="true"><div class="atom-aura"></div><canvas id="unit-particles"></canvas><span class="atom-caption">ANY UNIT <i></i> ONE MARKET</span></div></section>
 
-    <footer class="home-footer"><div><img src="assets/icons/denom-logo.png" alt=""><strong>DENOM</strong><span>Price anything in anything.</span></div><div><small>ROBINHOOD CHAIN TESTNET</small></div></footer>
+    <footer class="home-footer"><div><img src="assets/icons/denom-logo.png" alt=""><strong>DENOM</strong><span>Price anything in anything.</span></div></footer>
   </main>
   <section class="app-shell" id="denom-app" aria-label="DENOM application" hidden>
     <div class="app-frame">
