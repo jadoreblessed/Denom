@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="home.css">
 </head>
 <body>
+  <div class="loader" aria-hidden="true"><div class="loader-mark"><img src="assets/denom-loader-v2.webp" alt=""><span></span></div><div class="loader-track"><i></i></div></div>
   <a class="skip" href="#main">Skip to content</a>
   <aside class="site-rail" aria-label="Primary navigation">
     <a class="rail-brand" href="#home" data-close-app aria-label="DENOM home"><img src="assets/icons/denom-logo.png" alt=""></a>
@@ -25,7 +26,6 @@
       <button type="button" class="rail-link" data-app-view="earnings" aria-label="Earnings" title="Earnings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5m0 14h16M8 15l4-4 3 2 5-7"/></svg></button>
       <button type="button" class="rail-link" data-app-view="rates" aria-label="Rates" title="Rates"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h13"/><circle cx="18" cy="12" r="2"/></svg></button>
     </nav>
-    <a class="rail-foot" href="#home" data-close-app aria-label="DENOM home">D</a>
   </aside>
   <header class="topbar">
     <a href="#home" class="wordmark" data-close-app aria-label="DENOM home"><b>DENOM</b><span>ROBINHOOD CHAIN</span></a>
@@ -41,30 +41,29 @@
         <h1 id="hero-title">A coin.<br><span>Any unit.</span></h1>
         <p class="hero-lead">Create a market priced in currencies, commodities, or the things your community cares about.</p>
         <div class="hero-ctas"><button class="button-light" type="button" data-app-view="launch">Launch a coin</button><button class="button-outline" type="button" data-app-view="explore">Explore markets</button></div>
-        <div class="hero-availability"><span class="signal-dot"></span> Built for Robinhood Chain <span class="availability-separator"></span> <span>Testnet markets open</span></div>
       </div>
       <div class="hero-art" aria-label="Markets priced in different world currencies">
         <div class="art-halo" aria-hidden="true"></div>
         <div class="art-track art-track-one" aria-hidden="true"></div><div class="art-track art-track-two" aria-hidden="true"></div>
         <div id="hero-cards" class="hero-cards"></div>
+        <div class="hero-card-controls" aria-label="Browse reference markets"><button id="hero-prev" type="button" aria-label="Previous markets">←</button><span id="hero-position" aria-live="polite">01 / 05</span><button id="hero-next" type="button" aria-label="Next markets">→</button></div>
         <div class="hero-art-caption"><span>ONE IDEA</span><span class="caption-line"></span><span>ANY DENOMINATION</span></div>
       </div>
       <div class="hero-corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-      <div class="hero-utilities"><button id="copy-ca" type="button">CA COMING SOON</button><button id="social-action" type="button">𝕏 / FOLLOW DENOM</button></div>
-      <div class="hero-counter">01 / 03 <span>REFERENCE MARKETS</span></div>
+      <div class="hero-utilities"><button id="copy-ca" type="button">CA coming soon</button><button id="social-action" type="button">Follow on 𝕏</button></div>
     </section>
 
     <div class="market-strip" id="market-strip" aria-label="Selected market snapshots"></div>
 
     <section class="discovery-grid" aria-label="DENOM products">
-      <button type="button" class="discovery-card discover-markets" data-app-view="explore"><span class="card-kicker">01 / EXPLORE</span><span class="discovery-logos" id="discovery-logos"></span><span class="card-bottom"><strong>Markets</strong><small>See the coins and their units</small></span></button>
-      <button type="button" class="discovery-card discover-units" data-app-view="make-pair"><span class="card-kicker">02 / CREATE A UNIT</span><span class="unit-specimen"><em>€</em><em>¥</em><em>₩</em><em>$</em></span><span class="card-bottom"><strong>Make a pair</strong><small>Give a new unit its own market</small></span></button>
-      <button type="button" class="discovery-card discover-launch" data-app-view="launch"><span class="card-kicker">03 / LAUNCH</span><span class="curve-specimen"><span class="curve-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><b>from block one</b></span><span class="card-bottom"><strong>Launch</strong><small>Set the unit and the terms</small></span></button>
+      <button type="button" class="discovery-card discover-markets" data-app-view="explore"><span class="card-kicker">01 / EXPLORE</span><span class="discovery-logos" id="discovery-logos"></span><span class="card-bottom"><strong>Markets</strong></span></button>
+      <button type="button" class="discovery-card discover-units" data-app-view="make-pair"><span class="card-kicker">02 / CREATE A UNIT</span><span class="unit-specimen"><em>€</em><em>¥</em><em>₩</em><em>$</em></span><span class="card-bottom"><strong>Make a pair</strong></span></button>
+      <button type="button" class="discovery-card discover-launch" data-app-view="launch"><span class="card-kicker">03 / LAUNCH</span><span class="curve-specimen"><span class="curve-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></span><span class="card-bottom"><strong>Launch</strong></span></button>
     </section>
 
     <section class="home-market-section" aria-labelledby="home-market-title"><div class="section-head"><div><span>EXPLORE / SAVED MARKET SNAPSHOTS</span><h2 id="home-market-title">Markets in motion.</h2></div><button type="button" data-app-view="explore">View all markets</button></div><div class="home-market-layout"><div class="home-token-grid" id="home-token-grid"></div><div class="home-side-panel"><span class="side-kicker">THE DENOM IDEA</span><h3>Value looks different in every market.</h3><p>Choose a unit people already know. Or make a new one and let the market give it a price.</p><div class="unit-list"><div><b>EUR</b><span>Euro</span><strong>€</strong></div><div><b>JPY</b><span>Yen</span><strong>¥</strong></div><div><b>INR</b><span>Rupee</span><strong>₹</strong></div><div><b>KRW</b><span>Won</span><strong>₩</strong></div></div><button type="button" data-app-view="make-pair">Create a unit</button></div></div></section>
 
-    <section class="home-process" aria-labelledby="home-process-title"><div class="section-head"><div><span>THE MECHANICS</span><h2 id="home-process-title">A market from the first block.</h2></div></div><div class="process-grid"><article><b>01</b><h3>Choose the unit</h3><p>Price your coin in a currency or a custom unit.</p></article><article><b>02</b><h3>Set the terms</h3><p>Pick the creator fee and start the curve.</p></article><article><b>03</b><h3>Let it trade</h3><p>The market opens as soon as the launch confirms.</p></article></div></section>
+    <section class="home-process" aria-labelledby="home-process-title"><div class="process-copy"><span>ONE COIN · INFINITE FRAMES OF REFERENCE</span><h2 id="home-process-title">The unit changes.<br><em>The market moves.</em></h2><p>Price a new coin in the world your community already knows. Watch a market take shape in real time.</p><button class="button-light" type="button" data-app-view="launch">Create a market</button></div><div class="atom-stage" aria-hidden="true"><div class="atom-aura"></div><canvas id="unit-particles"></canvas><span class="atom-caption">ANY UNIT <i></i> ONE MARKET</span></div></section>
 
     <footer class="home-footer"><div><img src="assets/icons/denom-logo.png" alt=""><strong>DENOM</strong><span>Price anything in anything.</span></div><div><small>ROBINHOOD CHAIN TESTNET</small></div></footer>
   </main>
@@ -237,5 +236,6 @@
   <dialog id="wallet-dialog" aria-labelledby="wallet-title"><button class="dialog-close" aria-label="Close">×</button><span>WALLET</span><h2 id="wallet-title">Connect your wallet</h2><p>No compatible wallet was detected.</p><button class="dialog-done primary-action">Close</button></dialog>
   <dialog id="review-dialog" aria-labelledby="review-title"><button class="dialog-close" aria-label="Close">×</button><span>REVIEW</span><h2 id="review-title">Ready for the chain</h2><p id="review-copy">Your market will be created on Robinhood Chain Testnet and becomes tradable as soon as the transaction confirms.</p><button id="confirm-launch" class="primary-action" type="button">Launch market</button><button class="dialog-done dialog-secondary" type="button">Back to editor</button></dialog>
   <script type="module" src="app.js"></script>
+  <script type="module" src="home-atoms.js"></script>
 </body>
 </html>

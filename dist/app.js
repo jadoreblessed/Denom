@@ -16,7 +16,12 @@ let chainReady = false;
 let activeMarket = null;
 let tradeMode = 'buy';
 
-function finishLoading() { document.body.classList.add('loaded'); }
+function finishLoading() {
+  const reveal = () => document.body.classList.add('loaded');
+  if (reduced) { reveal(); return; }
+  // Keep the original mark on screen long enough to complete its scan.
+  setTimeout(reveal, 1350);
+}
 
 function showToast(message) {
   toast.textContent = message;
@@ -459,7 +464,7 @@ renderMarkets();
 // The homepage uses the same saved reference markets as Explore. Never invent
 // a live quote or silently present a saved observation as current trading data.
 function renderHomeMarkets() {
-  const featured = [marketData[0], marketData[3], marketData[2]];
+  const featured = [0, 3, 2, 5, 6, 7, 10, 11, 12, 13].map(index => marketData[index]);
   const gallery = [0, 2, 3, 5, 6, 11, 12, 13].map(index => marketData[index]);
   const card = (market, position) => {
     const meta = unitMeta[market.unit] || { icon:'assets/icons/usdg.svg', symbol:'$' };
@@ -470,10 +475,30 @@ function renderHomeMarkets() {
       <span class="card-stat"><strong>${escapeHtml(formatMarketPrice(market))}</strong><small>saved reference price</small></span>
     </button>`;
   };
-  document.querySelector('#hero-cards').innerHTML = featured.map(card).join('');
-  document.querySelector('#market-strip').innerHTML = gallery.slice(0, 5).map((market, index) =>
+  let first = 0;
+  const cardContainer = document.querySelector('#hero-cards');
+  const cardCount = featured.length;
+  const showCards = () => {
+    cardContainer.innerHTML = [0, 1, 2].map((position) => card(featured[(first + position) % cardCount], position)).join('');
+    document.querySelector('#hero-position').textContent = `${String(Math.floor(first / 2) + 1).padStart(2,'0')} / 05`;
+  };
+  showCards();
+  document.querySelector('#hero-prev').onclick = () => { first = (first - 2 + cardCount) % cardCount; showCards(); };
+  document.querySelector('#hero-next').onclick = () => { first = (first + 2) % cardCount; showCards(); };
+  let swipeStart = 0;
+  const art = document.querySelector('.hero-art');
+  art.addEventListener('touchstart', event => { swipeStart = event.changedTouches[0].screenX; }, { passive:true });
+  art.addEventListener('touchend', event => {
+    const distance = event.changedTouches[0].screenX - swipeStart;
+    if (Math.abs(distance) > 45 && !event.target.closest('.hero-market-card')) {
+      document.querySelector(distance < 0 ? '#hero-next' : '#hero-prev').click();
+    }
+  }, { passive:true });
+  const strip = gallery.slice(0, 8).map((market, index) =>
     `<button type="button" data-market-id="${market.id}"><span>${String(index + 1).padStart(2,'0')}</span><img src="${escapeHtml(market.logo)}" alt="" loading="lazy"><strong>${escapeHtml(market.name)}<small>${escapeHtml(market.ticker)} / ${escapeHtml(market.unit)}</small></strong><b>${escapeHtml(formatMarketPrice(market))}</b></button>`
   ).join('');
+  document.querySelector('#market-strip').innerHTML = `<div class="strip-track">${strip}${strip}</div>`;
+  document.querySelectorAll('#market-strip .strip-track button:nth-child(n+9)').forEach(button => { button.setAttribute('aria-hidden','true'); button.tabIndex = -1; });
   document.querySelector('#discovery-logos').innerHTML = gallery.slice(0, 6).map(market => `<img src="${escapeHtml(market.logo)}" alt="" loading="lazy">`).join('');
   document.querySelector('#home-token-grid').innerHTML = gallery.map(market => {
     const meta = unitMeta[market.unit] || { symbol:'$', icon:'assets/icons/usdg.svg' };
