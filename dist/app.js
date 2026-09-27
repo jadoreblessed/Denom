@@ -1,88 +1,22 @@
-import { DenomMatter } from './particles.js';
 import { verifiedCandles } from './market-data.js';
 import { DenomChain } from './chain.js';
 
 const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
-const smooth = value => {
-  const t = clamp(value);
-  return t * t * (3 - 2 * t);
-};
 const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, character => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
 })[character]);
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const scenes = [...document.querySelectorAll('.scene')];
 const appShell = document.querySelector('#denom-app');
 const appViews = [...document.querySelectorAll('.app-view')];
-const navItems = [...document.querySelectorAll('.topbar [data-app-view]')];
+const navItems = [...document.querySelectorAll('.site-rail [data-app-view],.topbar [data-app-view]')];
 const toast = document.querySelector('#toast');
-let matter;
-let metrics = [];
-let scheduled = false;
-let targetScrollY = scrollY;
-let visualScrollY = scrollY;
 let toastTimer;
-let loadingFinished = false;
-let loadingFinishing = false;
-const loadingStartedAt = performance.now();
 const chain = new DenomChain();
 let chainReady = false;
 let activeMarket = null;
 let tradeMode = 'buy';
 
-function finishLoading() {
-  if (loadingFinished || loadingFinishing) return;
-  loadingFinishing = true;
-  const minimumShowTime = reduced ? 0 : 1760;
-  const remaining = Math.max(0, minimumShowTime - (performance.now() - loadingStartedAt));
-  setTimeout(() => {
-    loadingFinished = true;
-    document.body.classList.add('loaded');
-    queueScroll();
-    setTimeout(() => document.querySelector('.loader')?.remove(), reduced ? 0 : 820);
-  }, remaining);
-}
-
-function splitMotionWords(element) {
-  const label = element.textContent.replace(/\s+/g, ' ').trim();
-  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-  const nodes = [];
-  while (walker.nextNode()) nodes.push(walker.currentNode);
-  nodes.forEach(node => {
-    const fragment = document.createDocumentFragment();
-    node.textContent.split(/(\s+)/).forEach(part => {
-      if (!part) return;
-      if (/^\s+$/.test(part)) {
-        fragment.append(part);
-        return;
-      }
-      const word = document.createElement('span');
-      const inner = document.createElement('span');
-      word.className = 'motion-word';
-      inner.className = 'motion-word-inner';
-      word.setAttribute('aria-hidden', 'true');
-      inner.textContent = part;
-      word.append(inner);
-      fragment.append(word);
-    });
-    node.replaceWith(fragment);
-  });
-  if (label) element.setAttribute('aria-label', label);
-}
-
-scenes.forEach((scene, index) => {
-  scene.querySelectorAll('.scene-title,.scene-statement').forEach(splitMotionWords);
-  if (index > 0) {
-    scene.querySelectorAll('.scene-copy,.unit-index,.enter-app,.final-signature,.currency-legend').forEach(element => {
-      element.classList.add('motion-detail');
-    });
-  }
-});
-
-const landingMotion = scenes.map(scene => ({
-  words: [...scene.querySelectorAll('.motion-word-inner')],
-  details: [...scene.querySelectorAll('.motion-detail')]
-}));
+function finishLoading() { document.body.classList.add('loaded'); }
 
 function showToast(message) {
   toast.textContent = message;
@@ -91,114 +25,33 @@ function showToast(message) {
   toastTimer = setTimeout(() => toast.classList.remove('visible'), 2400);
 }
 
-function measure() {
-  // Start the next fixed panel one viewport before its section top, so
-  // consecutive scenes trade places without an empty scroll gap.
-  const tops = scenes.map((scene, index) => Math.max(0, scene.offsetTop - (index ? innerHeight : 0)));
-  metrics = scenes.map((scene, index) => ({
-    top: tops[index],
-    travel: Math.max(1, index < scenes.length - 1 ? tops[index + 1] - tops[index] : scene.offsetHeight - innerHeight)
-  }));
-}
-
-function paintScroll() {
-  scheduled = false;
-  if (!metrics.length) return;
-  targetScrollY = scrollY;
-  const distanceToScroll = targetScrollY - visualScrollY;
-  visualScrollY += reduced ? distanceToScroll : distanceToScroll * .14;
-  if (Math.abs(distanceToScroll) < .35) visualScrollY = targetScrollY;
-  const y = visualScrollY;
-  let active = 0;
-  for (let index = 0; index < metrics.length; index += 1) {
-    if (y >= metrics[index].top - 2) active = index;
-  }
-  const local = clamp((y - metrics[active].top) / metrics[active].travel);
-  // One shared crossfade keeps copy and matter on the same beat. The previous
-  // combination faded the fixed panel and every child a second time, leaving
-  // a nearly blank frame in the middle of a section hand-off.
-  // Keep the long material flight, but do not stack two oversized headlines.
-  // The outgoing copy clears first; the incoming copy then resolves while the
-  // particle object is still travelling between its two shapes.
-  const activeExit = active === scenes.length - 1 || reduced ? 1 : 1 - smooth((local - .58) / .12);
-  const nextEnter = !reduced && active < scenes.length - 1 ? smooth((local - .84) / .14) : 0;
-  scenes.forEach((scene, index) => {
-    const upcoming = index === active + 1;
-    if (index !== active && !upcoming && scene.dataset.inactive === 'true') return;
-    const inactiveState = index !== active && !(upcoming && nextEnter > 0) ? 'true' : 'false';
-    if (scene.dataset.inactive !== inactiveState) scene.dataset.inactive = inactiveState;
-    const inner = scene.querySelector('.scene-inner');
-    let opacity = 0;
-    if (index === active) {
-      opacity = activeExit;
-    } else if (upcoming) {
-      opacity = nextEnter;
-    }
-    if (reduced) opacity = index === active ? 1 : 0;
-    inner.style.opacity = opacity.toFixed(3);
-    inner.style.pointerEvents = opacity > 0.55 ? 'auto' : 'none';
-
-    const enterBase = reduced || index === active ? 1 : upcoming ? nextEnter : 0;
-    const motion = landingMotion[index];
-    motion.words.forEach((word, wordIndex) => {
-      const stagger = Math.min(0.15, wordIndex * 0.018);
-      const enter = smooth((enterBase - stagger) / Math.max(0.01, 1 - stagger));
-      // The panel opacity owns the fade; words only supply spatial staging.
-      word.style.opacity = (upcoming ? .74 + enter * .26 : 1).toFixed(3);
-      word.style.transform = reduced ? 'none' : `translate3d(0, ${((1 - enter) * 12).toFixed(2)}px, 0)`;
-    });
-    motion.details.forEach((detail, detailIndex) => {
-      const stagger = Math.min(0.24, detailIndex * 0.06);
-      const enter = smooth((enterBase - stagger) / Math.max(0.01, 1 - stagger));
-      detail.style.setProperty('--motion-opacity', (upcoming ? .72 + enter * .28 : 1).toFixed(3));
-      detail.style.setProperty('--motion-y', `${((1 - enter) * 18).toFixed(2)}px`);
-    });
-  });
-  if (document.body.dataset.scene !== String(active)) document.body.dataset.scene = String(active);
-  matter?.setScroll(active, local);
-  if (Math.abs(targetScrollY - visualScrollY) >= .35) queueScroll();
-}
-
-function queueScroll() {
-  targetScrollY = scrollY;
-  if (!scheduled) {
-    scheduled = true;
-    requestAnimationFrame(paintScroll);
-  }
-}
-
-addEventListener('scroll', queueScroll, { passive: true });
-addEventListener('resize', () => {
-  visualScrollY = scrollY;
-  targetScrollY = scrollY;
-  measure();
-  paintScroll();
-}, { passive: true });
-
 function openApp(view = 'explore') {
   const selected = appViews.some(item => item.dataset.view === view) ? view : 'explore';
   appShell.hidden = false;
   appViews.forEach(item => { item.hidden = item.dataset.view !== selected; });
   navItems.forEach(item => item.classList.toggle('active', item.dataset.appView === selected));
+  document.querySelector('.site-rail [aria-label="Home"]')?.classList.remove('active');
   document.body.classList.add('app-open');
   document.querySelector('main')?.setAttribute('inert', '');
-  matter?.setSuspended(true);
   appShell.scrollTop = 0;
   requestAnimationFrame(() => appShell.classList.add('visible'));
   if ((selected === 'portfolio' || selected === 'earnings') && chain.account) refreshWalletViews().catch(() => {});
 }
 
 function closeApp(event) {
+  if (!document.body.classList.contains('app-open')) {
+    window.scrollTo({ top:0, behavior:reduced ? 'instant' : 'smooth' });
+    return;
+  }
   if (event) event.preventDefault();
   appShell.classList.remove('visible');
   document.body.classList.remove('app-open');
   document.querySelector('main')?.removeAttribute('inert');
-  matter?.setSuspended(false);
   navItems.forEach(item => item.classList.remove('active'));
+  document.querySelector('.site-rail [aria-label="Home"]')?.classList.add('active');
   setTimeout(() => {
     if (!document.body.classList.contains('app-open')) appShell.hidden = true;
   }, reduced ? 0 : 320);
-  queueScroll();
 }
 
 document.querySelectorAll('[data-app-view]').forEach(button => {
@@ -207,6 +60,18 @@ document.querySelectorAll('[data-app-view]').forEach(button => {
 document.querySelectorAll('[data-close-app]').forEach(button => button.addEventListener('click', closeApp));
 document.querySelector('#copy-ca')?.addEventListener('click', () => showToast('Contract address will appear at launch.'));
 document.querySelector('#social-action')?.addEventListener('click', () => showToast('DENOM on X — link reserved for launch.'));
+document.querySelector('#global-search')?.addEventListener('click', () => {
+  openApp('explore');
+  requestAnimationFrame(() => document.querySelector('#market-search')?.focus());
+});
+document.addEventListener('keydown', event => {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+    event.preventDefault();
+    openApp('explore');
+    requestAnimationFrame(() => document.querySelector('#market-search')?.focus());
+  }
+  if (event.key === 'Escape' && document.body.classList.contains('app-open') && !document.querySelector('dialog[open]')) closeApp();
+});
 
 const marketBody = document.querySelector('#market-body');
 const marketEmpty = document.querySelector('.market-empty');
@@ -590,6 +455,40 @@ marketBody?.addEventListener('click', event => {
 });
 loadMarkets?.addEventListener('click', () => { marketLimit += 14; renderMarkets(); });
 renderMarkets();
+
+// The homepage uses the same saved reference markets as Explore. Never invent
+// a live quote or silently present a saved observation as current trading data.
+function renderHomeMarkets() {
+  const featured = [marketData[0], marketData[3], marketData[2]];
+  const gallery = [0, 2, 3, 5, 6, 11, 12, 13].map(index => marketData[index]);
+  const card = (market, position) => {
+    const meta = unitMeta[market.unit] || { icon:'assets/icons/usdg.svg', symbol:'$' };
+    return `<button class="hero-market-card card-${position}" type="button" data-market-id="${market.id}" aria-label="Open ${escapeHtml(market.name)} market">
+      <span class="card-top"><span>DENOM <i>/ ${escapeHtml(market.unit)}</i></span><em>0${position + 1}</em></span>
+      <span class="card-center"><img class="card-coin" src="${escapeHtml(market.logo)}" alt="" loading="eager"><span class="card-unit"><img src="${escapeHtml(meta.icon)}" alt=""><b>${escapeHtml(market.unit)}</b></span></span>
+      <span class="card-name">${escapeHtml(market.name)}</span><span class="card-ticker">${escapeHtml(market.ticker)} <i>priced in ${escapeHtml(market.unit)}</i></span>
+      <span class="card-stat"><strong>${escapeHtml(formatMarketPrice(market))}</strong><small>saved reference price</small></span>
+    </button>`;
+  };
+  document.querySelector('#hero-cards').innerHTML = featured.map(card).join('');
+  document.querySelector('#market-strip').innerHTML = gallery.slice(0, 5).map((market, index) =>
+    `<button type="button" data-market-id="${market.id}"><span>${String(index + 1).padStart(2,'0')}</span><img src="${escapeHtml(market.logo)}" alt="" loading="lazy"><strong>${escapeHtml(market.name)}<small>${escapeHtml(market.ticker)} / ${escapeHtml(market.unit)}</small></strong><b>${escapeHtml(formatMarketPrice(market))}</b></button>`
+  ).join('');
+  document.querySelector('#discovery-logos').innerHTML = gallery.slice(0, 6).map(market => `<img src="${escapeHtml(market.logo)}" alt="" loading="lazy">`).join('');
+  document.querySelector('#home-token-grid').innerHTML = gallery.map(market => {
+    const meta = unitMeta[market.unit] || { symbol:'$', icon:'assets/icons/usdg.svg' };
+    return `<button type="button" class="home-token" data-market-id="${market.id}" aria-label="Open ${escapeHtml(market.name)} market">
+      <span class="token-cover"><img src="${escapeHtml(market.logo)}" alt="" loading="lazy"><em>${escapeHtml(market.unit)}</em></span>
+      <span class="token-name">${escapeHtml(market.name)}<small>${escapeHtml(market.ticker)} / ${escapeHtml(market.unit)}</small></span>
+      <span class="token-stats"><b>${escapeHtml(formatMarketPrice(market))}</b><small>saved reference</small></span>
+    </button>`;
+  }).join('');
+}
+renderHomeMarkets();
+document.querySelector('.market-home')?.addEventListener('click', event => {
+  const target = event.target.closest('[data-market-id]');
+  if (target) selectMarket(target.dataset.marketId);
+});
 
 document.querySelectorAll('.segmented,.region-chips').forEach(group => {
   group.querySelectorAll('button').forEach(button => {
@@ -1107,16 +1006,4 @@ chain.prepare().then(() => {
   console.warn('DENOM chain adapter unavailable.', error);
 });
 
-document.fonts.load('700 420px "Denom Display"').catch(() => {}).then(() => requestAnimationFrame(() => {
-  try {
-    matter = new DenomMatter(document.querySelector('#matter'), { reduced });
-    document.body.classList.add('canvas-ready');
-  } catch (error) {
-    console.warn('DENOM particle field unavailable.', error);
-  }
-  measure();
-  paintScroll();
-  matter?.start();
-  setTimeout(finishLoading, reduced ? 0 : 220);
-}));
-setTimeout(finishLoading, 2200);
+requestAnimationFrame(finishLoading);
